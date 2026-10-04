@@ -154,15 +154,15 @@ const Ui = {
     const img = h('img', { alt: '', loading: 'lazy' });
     box.textContent = '';
     box.appendChild(img);
-    Api.fotoBlob(proxy, data && data.foto_uc ? data.foto_uc : publik)
-      .then(function (src) { img.src = src; })
-      .catch(function (err) {
-        // Kalau proxy benar-benar tidak bisa dipakai, tunjukkan
-        // penyebabnya (mis. "AUTH: Sesi tidak ditemukan") supaya masalah
-        // tidak lagi muncul sebagai kotak kosong tanpa penjelasan.
-        box.textContent = '';
-        box.appendChild(h('span', { class: 'avatar__galat', title: err.message || '', text: '!' }));
-      });
+    const tanda = function (err) {
+      box.textContent = '';
+      box.appendChild(h('span', {
+        class: 'avatar__galat',
+        title: (err && err.message) || 'Foto tidak bisa dimuat',
+        text: '!'
+      }));
+    };
+    Api.pasangFoto(img, proxy, (data && data.foto_uc) || publik, tanda)['catch'](function () { });
     return box;
   },
 

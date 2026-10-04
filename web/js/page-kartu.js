@@ -61,12 +61,10 @@ Hal.daftar('#/kartu', {
       }
       const img = h('img', { alt: '' });
       box.appendChild(img);
-      Api.fotoBlob(s.foto_proxy, s.foto_uc || s.foto)
-        .then(function (src) { img.src = src; })
-        .catch(function () {
-          box.textContent = '';
-          box.appendChild(h('span', { class: 'avatar__galat', text: '!' }));
-        });
+      Api.pasangFoto(img, s.foto_proxy, s.foto_uc || s.foto, function (err) {
+        box.textContent = '';
+        box.appendChild(h('span', { class: 'avatar__galat', title: (err && err.message) || '', text: '!' }));
+      })['catch'](function () { });
       return box;
     }
 
@@ -204,20 +202,37 @@ Hal.daftar('#/kartu', {
     // Browser tidak menunggu <img> yang belum selesai diunduh ketika
     // window.print() dipanggil. Foto yang masih kosong akan hilang dari PDF,
     // jadi cetak baru jalan setelah semua gambar selesai ( atau gagal ).
+    // Foto dimuat asinkron (Api.pasangFoto baru memasang src setelah respons
+    // backend dicek), jadi <img> bisa belum punya src sama sekali saat
+    // cetak dipicu. Kalau itu dianggap "gagal", PDF keluar dengan foto kosong.
+    // Karena itu status tiap gambar dicek berulang: null = masih menunggu
+    // src, true = Loaded, false = benar-benar gagal.
     function tungguGambar() {
       const gambar = $$('img', areaCetak);
       return Promise.all(gambar.map(function (im) {
-        if (im.complete && im.naturalWidth > 0) return Promise.resolve(true);
         return new Promise(function (res) {
-          let selesai = false;
-          const done = function (ok) {
-            if (selesai) return;
-            selesai = true;
-            res(ok);
+          const batas = Date.now() + 8000;
+          let hasilTerakhir = false;
+          const periksa = function () {
+            const src = im.getAttribute('src');
+            if (!src) return 'menunggu';
+            if (im.naturalWidth > 0) return true;
+            return im.complete ? false : 'menunggu';
           };
-          im.addEventListener('load', function () { done(true); }, { once: true });
-          im.addEventListener('error', function () { done(false); }, { once: true });
-          setTimeout(function () { done(!!im.naturalWidth); }, 8000);
+          const tick = function () {
+            const st = periksa();
+            if (st === true || st === false) hasilTerakhir = st;
+            if ((st === true || st === false) && (!st || im.naturalWidth > 0)) {
+              res(st);
+              return;
+            }
+            if (Date.now() >= batas) {
+              res(st === true || im.naturalWidth > 0);
+              return;
+            }
+            setTimeout(tick, 120);
+          };
+          tick();
         });
       })).then(function (hasil) {
         return hasil.filter(Boolean).length;

@@ -225,11 +225,27 @@ Dua jebakan CSS yang pernah membuat hasil cetak kosong:
 
 Foto dimuat dengan `Api.fotoBlob()`: proxy bertoken lebih dulu
 (`?action=foto&id=..&t=..`), lalu `drive.google.com/uc?export=view&id=..`
-sebagai cadangan. Keduanya tidak dipasang lewat `<img src>` langsung, karena response
-JSON error dari backend akan gagal dimuat sebagai gambar dan hasilnya kotak
-kosong tanpa penjelasan. `Api.fotoBlob()` memeriksa `Content-Type`- dulu;
-kalau ternyata JSON, pesan error-nya (mis. `AUTH: Sesi tidak ditemukan`)
-ditampilkan sebagai tanda merah di kotak avatar. Thumbnail Drive sering ditolak saat di-hotlink dari origin PWA
+sebagai cadangan. Rantainya ada karena dua hal yang saling meniadakan:
+
+- `<img src=".../exec?action=foto">` diam-diam gagal kalau backend membalas
+  JSON error, dan hasilnya kotak kosong tanpa penjelasan.
+- `fetch()` dengan `credentials: 'include'` bisa ditolak CORS, padahal
+  `<img>` biasa saja tetap bisa memuat URL yang sama.
+
+Jadi `Api.fotoSrc()` lebih dulu memakai `fetch` dan memeriksa `Content-Type`:
+kalau memang gambar, hasilnya dijadikan object URL (bis dipakai ulang untuk
+ cetak tanpa request ulang). Kalau ternyata JSON, pesan errornya — mis.
+`AUTH: Sesi tidak ditemukan` — langsung ditampilkan sebagai tanda merah di
+kotak avatar. Kalau `fetch` sendiri gagal karena CORS atau jaringan, URL
+proxy dikembalikan apa adanya dan `Api.pasangFoto()` membiarkannya dicoba
+sebagai gambar biasa; kalau `<img>`-nya gagal, barulah URL Drive dicoba, dan
+terakhir ditandai merah.
+
+Karena foto dimuat asinkron, `tungguGambar()` dalam `page-kartu.js` tidak
+lagi menganggap `<img>` yang belum punya `src` sebagai "gagal". Ia polls
+status tiap gambar sampai `load` atau `error` benar-benar terjadi, maksimal
+8 detik. Tanpa ini, `window.print()` bisa terpanggil sebelum foto sempat
+dimuat dan PDF keluar dengan kotak kosong. Thumbnail Drive sering ditolak saat di-hotlink dari origin PWA
 sehingga muncul kotak kosong; proxy selalu milik aplikasi sendiri. Backend
 menyertakan `foto_proxy` untuk semua siswa, bukan hanya saat `foto_publik` mati.
 

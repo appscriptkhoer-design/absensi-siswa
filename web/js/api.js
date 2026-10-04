@@ -123,47 +123,79 @@ const Api = {
 
   _blob: {},
 
-  // Muat foto lewat proxy bertoken dan kembalikan object URL.
+  // Rangkaian sumber foto untuk satu siswa.
   //
-  // <img src=".../exec?action=foto"> tidak bisa membedakan "gagal dimuat"
-  // dari "backend membalas JSON error", jadi hasilnya kotak kosong tanpa
-  // penjelasan. fetch + pemeriksaan Content-Type membuat error-nya terlihat,
-  // dan object URL-nya bisa dipakai ulang untuk cetak.
-  fotoBlob: function (proxy, cadangan) {
+  // <img src=".../exec?action=foto"> diam-diam gagal kalau backend membalas
+  // JSON error, dan fetch() bisa gagal karena CORS padahal <img> biasa saja
+  // bisa memuat URL itu. Jadi keduanya dicoba:
+  //
+  //   1. fetch + periksa Content-Type -> object URL (error backend jadi
+  //      terlihat, hasilnya bisa dipakai ulang untuk cetak)
+  //   2. kalau fetch gagal karena CORS/jaringan, URL proxy dikembalikan
+  //      apa adanya dan browser yang memuatnya sebagai gambar
+  //
+  // Pemanggil memasang pengaman img.onerror untuk mencoba URL Drive, lalu
+  // menampilkan tanda merah kalau semuanya gagal.
+  fotoSrc: function (proxy, cadangan) {
     const url = Api.fotoUrl(proxy);
     if (!url) return Promise.reject(new Error('Tanpa foto'));
     if (Api._blob[url]) return Api._blob[url];
-    const ambil = function (u, bawaKookie) {
-      return fetch(u, {
-        credentials: bawaKookie ? 'include' : 'omit',
-        cache: bawaKookie ? 'no-store' : 'force-cache'
-      }).then(function (res) {
-        const tipe = (res.headers.get('Content-Type') || '').split(';')[0].trim();
-        if (tipe.indexOf('image/') === 0) return res.blob();
-        return res.text().then(function (teks) {
-          let pesan = 'Foto tidak bisa dimuat (' + (tipe || 'tanpa tipe') + ')';
-          try {
-            const j = JSON.parse(teks);
-            if (j && j.error) pesan = (j.error.kode || 'ERROR') + ': ' + (j.error.pesan || '');
-          } catch (e) { }
-          const err = new Error(pesan);
-          err.tipe = tipe;
-          throw err;
+    const ambil = function () {
+      return fetch(url, { credentials: 'include', cache: 'no-store' })
+        .then(function (res) {
+          const tipe = (res.headers.get('Content-Type') || '').split(';')[0].trim();
+          if (tipe.indexOf('image/') === 0) {
+            return res.blob().then(function (b) { return URL.createObjectURL(b); });
+          }
+          return res.text().then(function (teks) {
+            let pesan = 'Foto ditolak backend (' + (tipe || 'tanpa tipe') + ')';
+            try {
+              const j = JSON.parse(teks);
+              if (j && j.error) pesan = (j.error.kode || 'ERROR') + ': ' + (j.error.pesan || '');
+            } catch (e) { }
+            const err = new Error(pesan);
+            err.dariBackend = true;
+            throw err;
+          });
+        })
+        .catch(function (err) {
+          if (err && err.dariBackend) throw err;
+          return url;
         });
-      });
     };
-    const usaha = ambil(url, true).catch(function (err) {
-      // Proxy gagal (biasanya sesi habis atau backend versi lama) — coba
-      // URL Drive langsung, tapi hanya kalau filenya dibagikan publik.
-      if (!cadangan) throw err;
-      return ambil(cadangan, false).catch(function () { throw err; });
-    }).then(function (blob) {
-      const obj = URL.createObjectURL(blob);
-      Api._blob[url] = Promise.resolve(obj);
-      return obj;
+    const usaha = ambil().then(function (src) {
+      if (src !== url) Api._blob[url] = Promise.resolve(src);
+      return src;
     });
     Api._blob[url] = usaha;
     return usaha;
+  },
+
+  // Pasang <img> dengan rangkaian cadangan: proxy -> Drive -> tanda merah.
+  pasangFoto: function (img, proxy, cadangan, gagal) {
+    const cobaCadangan = function () {
+      if (cadangan && img.src !== cadangan) {
+        img.onerror = function () { img.onerror = null; if (gagal) gagal(); };
+        img.src = cadangan;
+        return;
+      }
+      img.onerror = null;
+      if (gagal) gagal();
+    };
+    img.onerror = function () { img.onerror = null; cobaCadangan(); };
+    return Api.fotoSrc(proxy, cadangan).then(function (src) {
+      img.src = src;
+      return src;
+    }).catch(function (err) {
+      img.onerror = null;
+      if (err && err.dariBackend && cadangan) {
+        img.onerror = function () { img.onerror = null; if (gagal) gagal(); };
+        img.src = cadangan;
+        return cadangan;
+      }
+      if (gagal) gagal(err);
+      throw err;
+    });
   },
 
   bersihkanBlob_: function () { Api._blob = {}; },
