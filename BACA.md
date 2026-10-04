@@ -229,6 +229,32 @@ cadangan. Thumbnail Drive sering ditolak saat di-hotlink dari origin PWA
 sehingga muncul kotak kosong; proxy selalu milik aplikasi sendiri. Backend
 menyertakan `foto_proxy` untuk semua siswa, bukan hanya saat `foto_publik` mati.
 
+### Backend-nya belum ter-update
+
+PWA dan backend Apps Script punya mekanisme deploy yang berbeda. PWA ikut
+ter-update otomatis setiap kali ada push ke `main` (GitHub Pages), tapi
+backend di URL `/exec` **tidak pernah berubah sendiri**. Kalau kamu buat
+deployment baru lewat `clasp deploy`, itu membuat URL baru — URL lama tetap
+menunjuk ke versi lama.
+
+Akibatnya kamu bisa merasa sudah update aplikasi, padahal backend-nya
+masih versi lama. Gejalanya tidak pernah disertai error: foto siswa tidak tampil,
+pengaturan sekolah tidak tersimpan, tombol terasa mati.
+
+Cara cek versi yang benar-benar hidup, tanpa login:
+
+```
+bash test/api-live.sh
+```
+
+Lihat `app.info`. Field `build` memberi tahu nomor build backend yang sedang
+dipakai. Kalau `build` tidak ada sama sekali, berarti backend masih versi lama.
+Aplikasi juga menampilkan pita kuning **"Server belum diperbarui"** di bawah
+layar kalau `build` lebih kecil dari `Api.BUILD_MIN` di `web/js/api.js`, jadi
+ketidakcocokan versi tidak lagi diam-diam.
+
+Naikkan `APP.BUILD` di `gas/Config.gs` setiap kali kamu deploy backend.
+
 ### Foto tersimpan tapi tetap kosong
 
 Simpan siswa sukses, toast hijau muncul, tapi fotonya tidak pernah muncul.

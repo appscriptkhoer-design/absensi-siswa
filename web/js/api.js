@@ -97,6 +97,27 @@ const Api = {
     return err.pesan || 'Terjadi kesalahan.';
   },
 
+  // Build minimum backend yang dibutuhkan. Backend versi lama masih hidup di
+  // URL /exec kalau deployment tidak pernah di-update, dan gejalanya diam-diam
+  // (foto tidak muncul, pengaturan tidak tersimpan). app.info melaporkan build
+  // sehingga versinya bisa dicek tanpa login.
+  BUILD_MIN: 16,
+  _build: null,
+
+  cekBuild: function () {
+    if (Api._cekBuild) return Api._cekBuild;
+    Api._cekBuild = Api.panggil('app.info', {}, { timeout: 8000 }).then(function (r) {
+      const info = r && r.data ? r.data : r;
+      Api._build = info && typeof info.build === 'number' ? info.build : 0;
+      return Api._build;
+    }).catch(function () { Api._build = 0; return 0; });
+    return Api._cekBuild;
+  },
+
+  buildRendah: function () {
+    return Api._build !== null && Api._build < Api.BUILD_MIN;
+  },
+
   panggil: function (action, payload, opsi) {
     const o = opsi || {};
     if (!Api.adaUrl()) {

@@ -120,6 +120,30 @@ const App = {
     else shell.appendChild(navBaru);
   },
 
+  // PWA sendiri ter-update otomatis lewat GitHub Pages, tapi backend /exec
+  // hanya berubah kalau versi deployment-nya diganti manual di Apps Script.
+  // Selama backend masih versi lama, gejalanya muncul tanpa error sama sekali
+  // (foto siswa tidak tampil, pengaturan sekolah tidak tersimpan). Pita
+  // peringatan ini membuat ketidakcocokan versi itu kelihatan.
+  peringatanBuild: function () {
+    return Api.cekBuild().then(function (build) {
+      if (!Api.buildRendah()) return;
+      const lama = document.getElementById('peringatan-build');
+      if (lama) lama.remove();
+      const el = h('div', { id: 'peringatan-build', class: 'peringatan-build' }, [
+        h('strong', { text: 'Server belum diperbarui' }),
+        h('span', {
+          text: (build
+            ? 'Server masih build ' + build + ', aplikasi butuh build ' + Api.BUILD_MIN + '. '
+            : 'Server tidak melaporkan build. ') +
+            'Foto siswa bisa tidak tampil dan pengaturan sekolah bisa gagal tersimpan. ' +
+            'Di Apps Script: Deploy > Manage deployments > edit deployment > Version: New version.'
+        })
+      ]);
+      document.body.appendChild(el);
+    });
+  },
+
   render: function () {
     const shell = $('#shell');
     if (!shell) return;
@@ -212,6 +236,7 @@ const App = {
     });
     if (!location.hash) location.hash = App.RUTE.BERANDA;
     App.render();
+    if (Api.adaUrl()) App.peringatanBuild();
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(function () { });
     }

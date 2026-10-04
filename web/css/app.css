@@ -243,3 +243,22 @@ html5-qrcode #scan-anchor { border-radius: 6px !important; }
 
 .btn--flat { box-shadow: none; border-width: 0; background: transparent; padding: 4px; min-height: 36px; }
 .btn--flat:hover { background: var(--yellow); border-width: var(--line); }
+
+/* Pita peringatan versi backend. Dicetak? Tidak — hanya untuk layar. */
+.peringatan-build {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: var(--yellow);
+  color: #1b1400;
+  border-top: 3px solid #1b1400;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.peringatan-build strong { font-size: 14px; }
+
+@media print { .peringatan-build { display: none !important; } }
