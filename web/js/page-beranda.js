@@ -52,8 +52,8 @@ Hal.daftar('#/', {
       kartu.appendChild(stats);
 
       const waktu = {};
-      if (s && s.jam_masuk) waktu['Jam masuk'] = s.jam_masuk + ' (batas telat ' + s.batas_telat_mnt + ' mnt)';
-      if (s && s.jam_pulang) waktu['Jam pulang'] = s.jam_pulang;
+      if (s && s.jam_masuk) waktu['Jam masuk'] = Ui.jam(s.jam_masuk) + ' (batas telat ' + s.batas_telat_mnt + ' mnt)';
+      if (s && s.jam_pulang) waktu['Jam pulang'] = Ui.jam(s.jam_pulang);
       if (s && s.radius_m) waktu['Radius lokasi'] = s.radius_m + ' meter';
       if (Object.keys(waktu).length) {
         kartu.appendChild(h('div', { class: 'divider' }));

@@ -1,6 +1,6 @@
 {
-  "name": "Absensi Siswa — PAUD & SD",
-  "short_name": "Absensi",
+  "name": "ASI (Absensi Siswa)",
+  "short_name": "ASI",
   "description": "Scan QR/barcode, GPS, foto, kartu siswa, rekap, dan notifikasi orang tua.",
   "id": "./",
   "start_url": "./index.html",

@@ -62,9 +62,9 @@ Hal.daftar('#/admin', {
         const inLat = h('input', { class: 'input mono', value: s.lat === null ? '' : String(s.lat), placeholder: '-6.200000', inputmode: 'decimal' });
         const inLng = h('input', { class: 'input mono', value: s.lng === null ? '' : String(s.lng), placeholder: '106.816666', inputmode: 'decimal' });
         const inRadius = h('input', { class: 'input', type: 'number', value: String(s.radius_m || 0), min: '0', step: '10' });
-        const inMasuk = h('input', { class: 'input', type: 'time', value: s.jam_masuk || '07:00' });
+        const inMasuk = h('input', { class: 'input', type: 'time', value: Ui.jam(s.jam_masuk) || '07:00' });
         const inTelat = h('input', { class: 'input', type: 'number', value: String(s.batas_telat_mnt || 0), min: '0', max: '120' });
-        const inPulang = h('input', { class: 'input', type: 'time', value: s.jam_pulang || '13:00' });
+        const inPulang = h('input', { class: 'input', type: 'time', value: Ui.jam(s.jam_pulang) || '13:00' });
         const cekFoto = h('input', { type: 'checkbox', style: 'width:22px;height:22px' });
         cekFoto.checked = !!s.foto_publik;
         const cekWa = h('input', { type: 'checkbox', style: 'width:22px;height:22px' });
@@ -140,8 +140,8 @@ Hal.daftar('#/admin', {
           h('div', { class: 'kv-list' }, [
             baris('kode', 'Kode sekolah', s.kode),
             baris('latlng', 'Titik absen', (s.lat === null || s.lng === null) ? 'Belum diisi' : s.lat + ', ' + s.lng),
-            baris('buka', 'Absen dibuka', s.jam_masuk + ' · telat setelah ' + s.batas_telat_mnt + ' menit'),
-            baris('tutup', 'Absen ditutup', s.jam_pulang),
+            baris('buka', 'Absen dibuka', Ui.jam(s.jam_masuk) + ' · telat setelah ' + s.batas_telat_mnt + ' menit'),
+            baris('tutup', 'Absen ditutup', Ui.jam(s.jam_pulang)),
             baris('foto', 'Foto siswa', s.foto_publik ? 'publik' : 'token')
           ])
         ]));

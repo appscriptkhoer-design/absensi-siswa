@@ -57,6 +57,18 @@ function fmtTanggalLengkap (tanggalStr) {
 };
 
 const Ui = {
+  // Normalkan nilai jam menjadi "HH:MM". Backend lama pernah mengirim
+  // "1899-12-30 15:07:12" (waktu yang dibaca Sheets sebagai tanggal), dan
+  // <input type="time"> menolak nilai seperti itu — kolomnya jadi kosong
+  // padahal schoolsnya benar.
+  jam: function (v) {
+    const t = String(v === null || v === undefined ? '' : v).trim();
+    if (!t) return '';
+    const m = /(?:^|[\sT])(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(t);
+    if (!m) return t;
+    return (m[1].length < 2 ? '0' + m[1] : m[1]) + ':' + m[2];
+  },
+
   toast: function (pesan, jenis, tombol) {
     const lama = document.querySelectorAll('.toast');
     lama.forEach(function (t) { t.remove(); });

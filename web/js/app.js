@@ -2,7 +2,7 @@ const Hal = {};
 
 Hal.daftar = function (nama, def) { Hal[nama] = def; };
 
-const APP_WEB = { NAMA: 'Absensi Siswa', VERSI: '1.0.0' };
+const APP_WEB = { NAMA: 'ASI (Absensi Siswa)', VERSI: '1.0.0' };
 
 function kartuGagal(err) {
   return h('div', { class: 'card card--warn' }, [

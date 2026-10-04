@@ -135,8 +135,8 @@ Hal.daftar('#/rekap', {
               h('div', { class: 'item__meta' }, [
                 h('span', { text: r.kelas }),
                 h('span', { class: 'mono', text: r.barcode }),
-                r.jam_masuk ? h('span', { text: '⏱ ' + r.jam_masuk }) : null,
-                r.jam_pulang ? h('span', { text: '🚪 ' + r.jam_pulang }) : null,
+                r.jam_masuk ? h('span', { text: '⏱ ' + Ui.jam(r.jam_masuk) }) : null,
+                r.jam_pulang ? h('span', { text: '🚪 ' + Ui.jam(r.jam_pulang) }) : null,
                 r.keterangan ? h('span', { text: r.keterangan }) : null
               ])
             ]),

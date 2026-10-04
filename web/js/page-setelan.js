@@ -148,9 +148,9 @@ const defPengaturan = {
       const inLat = h('input', { class: 'input mono', value: sk.lat === null ? '' : String(sk.lat), placeholder: '-6.200000', inputmode: 'decimal' });
       const inLng = h('input', { class: 'input mono', value: sk.lng === null ? '' : String(sk.lng), placeholder: '106.816666', inputmode: 'decimal' });
       const inRadius = h('input', { class: 'input', type: 'number', value: String(sk.radius_m || 0), min: '20', step: '10' });
-      const inMasuk = h('input', { class: 'input', type: 'time', value: sk.jam_masuk || '07:00' });
+      const inMasuk = h('input', { class: 'input', type: 'time', value: Ui.jam(sk.jam_masuk) || '07:00' });
       const inTelat = h('input', { class: 'input', type: 'number', value: String(sk.batas_telat_mnt || 0), min: '0', max: '120' });
-      const inPulang = h('input', { class: 'input', type: 'time', value: sk.jam_pulang || '13:00' });
+      const inPulang = h('input', { class: 'input', type: 'time', value: Ui.jam(sk.jam_pulang) || '13:00' });
       const cekFoto = h('input', { type: 'checkbox', style: 'width:22px;height:22px' });
       cekFoto.checked = !!sk.foto_publik;
       const cekWa = h('input', { type: 'checkbox', style: 'width:22px;height:22px' });

@@ -1,4 +1,4 @@
-# Absensi Siswa — PAUD & SD
+# ASI (Absensi Siswa)
 
 Aplikasi absensi berbasis **Google Apps Script + PWA**. Data di Google Sheets, foto di
 Google Drive, API hosted di Apps Script, antarmuka berupa PWA statis (bisa dipasang di
@@ -217,7 +217,7 @@ Sumber lambat yang sudah diukur per Juli 2026:
 | Satu panggilan API selalu 2,4–3,4 detik (biaya platform Apps Script + redirect) | Cache respons di memori 45 detik untuk semua aksi baca; berpindah halaman tidak mengambil ulang data yang sama |
 | Halaman rekap memakai dua panggilan berurutan | Sekarang `Promise.all`, jadi satu kali tunggu |
 | 40 siswa berarti 40 permintaan foto sekaligus | Antrean foto (maksimal 6 jalan bersamaan) + `IntersectionObserver` (foto hanya diambil saat barisnya terlihat) |
-| Daftar siswa memuat semua baris sekaligus | `siswa.daftar` dipaginasi 30 baris, tombol "Muat lagi" (butuh backend build 19) |
+| Daftar siswa memuat semua baris sekaligus | `siswa.daftar` dipaginasi 30 baris, tombol "Muat lagi" (butuh backend build 20) |
 | Halaman rekap/siswa kosong selama menunggu | Kerangka bayangan (`Ui.rangka`) tampil seketika |
 | Kesalahan tidak ada jalan keluar | `Ui.pesanGalat` menyertakan tombol "Coba lagi" |
 | Service worker menunggu GitHub Pages dulu | Navigasi jadi cache-first, pembaruan jalan di belakang; ada toast "Muat ulang" kalau versi baru sampai |
@@ -390,6 +390,29 @@ GET). Membaca sheet hanya menambah ~0,5 detik.
 
 Ukuran thumbnail (480 px, kualitas 0,7) perlu ditambahkan di kedua opsi —
 saat ini foto dikirim apa adanya pada 900 px.
+
+### Jam sekolah tampil "1899-12-30 07:00:00"
+
+Gejalanya: di sheet jamnya benar (`07:00`), tapi di aplikasi tampil
+`1899-12-30 07:00:00`. Kolom jam di halaman Pengaturan juga kosong padahal
+sebenarnya ada isinya.
+
+Penyebabnya: Google Sheets tidak punya tipe "jam" — `07:00` disimpan sebagai
+pecahan hari, dan `getValues()` mengirimkannya sebagai objek `Date` beracuan
+epoch `1899-12-30`. `Db.teks_()` dulu memformat setiap `Date` sebagai tanggal
+penuh, jadi jam ikut jadi tanggal.
+
+Akibatnya lebih serius daripada tampilan: `Util.jamKeMenit_()` gagal membaca
+`1899-12-30 07:00:00`, sehingga batas telat dan jam buka/tutup absensi ikut
+salah diam-diam.
+
+Perbaikannya sudah ada di `Db.teks_()` (tahun di bawah 1900 diformat sebagai
+`HH:mm:ss`) dan `Util.jamKeMenit_()` (menerima `HH:mm`, `HH:mm:ss`, dan
+bentuk lama `1899-12-30 HH:mm:ss`). Tidak perlu mengubah data di sheet.
+
+Kalau masih muncul, berarti deployment backend belum di-update — build yang
+perlu ada di `app.info` adalah **20** atau lebih tinggi. Cek di
+**Akun → Kondisi Server → Versi backend**.
 
 ### Tombol yang "tidak terjadi apa-apa"
 

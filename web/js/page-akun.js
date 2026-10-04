@@ -42,7 +42,7 @@ Hal.daftar('#/akun', {
         baris('nama', 'Nama', s.nama || 'Belum dipilih'),
         baris('kode', 'Kode', s.kode || '-'),
         baris('lokasi', 'Titik absen', (s.lat === undefined || s.lat === null) ? 'Belum diisi' : (s.lat + ', ' + s.lng + ' · ' + (s.radius_m || 0) + ' m')),
-        baris('jam', 'Jam', (s.jam_masuk || '-') + ' – ' + (s.jam_pulang || '-'))
+        baris('jam', 'Jam', (Ui.jam(s.jam_masuk) || '-') + ' – ' + (Ui.jam(s.jam_pulang) || '-'))
       ])
     ]));
 
