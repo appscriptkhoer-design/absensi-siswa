@@ -230,6 +230,55 @@ const Ui = {
     return box;
   },
 
+  // ── Foto saat cetak kartu ───────────────────────────────────────────────
+  // Aturan: foto tidak boleh menghambat pencetakan. Barcode dan QR digambar
+  // dari data, jadi kartu yang fotonya kosong tetap berguna. Tiga fungsi ini
+  // sengaja dipisah supaya bisa diuji tanpa membuka dialog print.
+
+  // Hanya "sudah tampil atau belum" yang penting. Bedakan dengan <img> yang
+  // gagal total tidak perlu: dua-duanya dicetak sama saja, tanpa foto.
+  fotoSiap: function (img) {
+    return !!(img && img.complete && img.naturalWidth > 0);
+  },
+
+  // Tunggu sampai semua foto selesai, atau sampai batas waktu tercapai.
+  // Keduanya bukan kegagalan: pemanggil tetap mencetak apa adanya.
+  tungguFotoCetak: function (area, batasMs) {
+    const gambar = $$('.kartu__foto img', area);
+    return new Promise(function (res) {
+      if (!gambar.length) { res({ total: 0, siap: 0 }); return; }
+      const batas = Date.now() + (batasMs || 0);
+      const tick = function () {
+        const siap = gambar.filter(Ui.fotoSiap).length;
+        if (siap === gambar.length || Date.now() >= batas) {
+          res({ total: gambar.length, siap: siap });
+          return;
+        }
+        setTimeout(tick, 120);
+      };
+      tick();
+    });
+  },
+
+  // Foto yang belum siap disembunyikan, bukan dihapus, sehingga cetak kedua
+  // masih bisa memakainya begitu fotonya tiba. Kembalikan banyak yang
+  // disembunyikan supaya pemanggil bisa mengabarinya tanpa menebak.
+  sembunyikanFotoBelumSiap: function (area) {
+    let disembunyikan = 0;
+    $$('.kartu__foto img', area).forEach(function (img) {
+      if (Ui.fotoSiap(img)) return;
+      img.classList.add('cetak-sembunyi');
+      disembunyikan += 1;
+    });
+    return disembunyikan;
+  },
+
+  pulihkanFotoCetak: function (area) {
+    $$('.kartu__foto img', area).forEach(function (img) {
+      img.classList.remove('cetak-sembunyi');
+    });
+  },
+
   badge: function (status) {
     const peta = {
       hadir: 'Hadir', telat: 'Telat', izin: 'Izin', sakit: 'Sakit',

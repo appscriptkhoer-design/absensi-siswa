@@ -17,6 +17,10 @@ Hal.daftar('#/kartu', {
     cekDuaSisi.checked = true;
     cekDuaSisi.addEventListener('change', function () { duaSisi = cekDuaSisi.checked; gambar(); });
 
+    // Menunggu foto sampai tuntas itu lambat untuk kelas besar, jadi bukan
+    // bawaan. Yang bawaan: cetak sekarang, foto yang sudah siap ikut tercetak.
+    const cekTungguFoto = h('input', { type: 'checkbox', style: 'width:22px;height:22px' });
+
     const tombolSemua = h('button', { class: 'btn btn--sm', type: 'button', text: 'Pilih semua' });
     const tombolKosong = h('button', { class: 'btn btn--sm', type: 'button', text: 'Kosongkan' });
     tombolSemua.addEventListener('click', function () {
@@ -41,6 +45,10 @@ Hal.daftar('#/kartu', {
           h('div', { class: 'field' }, [
             h('label', { class: 'label', text: 'Format' }),
             h('label', { style: 'display:flex;align-items:center;gap:8px;min-height:56px;font-weight:800' }, [cekDuaSisi, 'Dua sisi (QR di belakang)'])
+          ]),
+          h('div', { class: 'field' }, [
+            h('label', { class: 'label', text: 'Foto' }),
+            h('label', { style: 'display:flex;align-items:center;gap:8px;min-height:56px;font-weight:800' }, [cekTungguFoto, 'Tunggu semua foto (lambat)'])
           ])
         ]),
         chipRow,
@@ -199,59 +207,35 @@ Hal.daftar('#/kartu', {
       });
     }
 
-    // Browser tidak menunggu <img> yang belum selesai diunduh ketika
-    // window.print() dipanggil. Foto yang masih kosong akan hilang dari PDF,
-    // jadi cetak baru jalan setelah semua gambar selesai ( atau gagal ).
-    // Foto dimuat asinkron (Api.pasangFoto baru memasang src setelah respons
-    // backend dicek), jadi <img> bisa belum punya src sama sekali saat
-    // cetak dipicu. Kalau itu dianggap "gagal", PDF keluar dengan foto kosong.
-    // Batasnya 20 detik karena foto dialirkan lewat antrean (maksimal 6
-    // sekaligus), jadi untuk banyak siswa antreannya memang memakan waktu.
-    // Karena itu status tiap gambar dicek berulang: null = masih menunggu
-    // src, true = Loaded, false = benar-benar gagal.
-    function tungguGambar() {
-      const gambar = $$('img', areaCetak);
-      return Promise.all(gambar.map(function (im) {
-        return new Promise(function (res) {
-          const batas = Date.now() + 20000;
-          let hasilTerakhir = false;
-          const periksa = function () {
-            const src = im.getAttribute('src');
-            if (!src) return 'menunggu';
-            if (im.naturalWidth > 0) return true;
-            return im.complete ? false : 'menunggu';
-          };
-          const tick = function () {
-            const st = periksa();
-            if (st === true || st === false) hasilTerakhir = st;
-            if ((st === true || st === false) && (!st || im.naturalWidth > 0)) {
-              res(st);
-              return;
-            }
-            if (Date.now() >= batas) {
-              res(st === true || im.naturalWidth > 0);
-              return;
-            }
-            setTimeout(tick, 120);
-          };
-          tick();
-        });
-      })).then(function (hasil) {
-        return hasil.filter(Boolean).length;
-      });
+    // Cetak tidak boleh bergantung pada foto: kartu yang fotonya kosong tetap
+    // berguna karena barcode dan QR digambar dari data.
+    //
+    // Batas 2,5 detik sudah cukup untuk foto yang hampir selesai. Foto dialirkan
+    // lewat antrean (maksimal 6 sekaligus), jadi untuk kelas besar antreannya
+    // memang belum habis — dan itu bukan alasan untuk menahan pencetakan.
+    // Yang lambat bisa dicentang sendiri di panel atas.
+    const TUNGGU_CETAK_MS = 2500;
+    const TUNGGU_CETAK_PENUH_MS = 60000;
+
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('afterprint', function () { Ui.pulihkanFotoCetak(areaCetak); });
     }
 
     tombolCetak.addEventListener('click', function () {
       const terpilih = data.filter(function (s) { return semuaTerpilih[String(s.id)]; });
       if (!terpilih.length) { Ui.toast('Pilih minimal satu siswa.', 'err'); return; }
       Ui.tombolMuat(tombolCetak, function () {
-        return tungguGambar().then(function (jml) {
-          const gagal = terpilih.length - jml;
-          if (gagal > 0) {
-            Ui.toast(gagal + ' foto gagal dimuat, kartu dicetak tanpa foto.', 'err');
+        const batas = cekTungguFoto.checked ? TUNGGU_CETAK_PENUH_MS : TUNGGU_CETAK_MS;
+        return Ui.tungguFotoCetak(areaCetak, batas).then(function (hasil) {
+          // Disembunyikan hanya untuk mencetak. Foto tetap ada di DOM, jadi
+          // cetak berikutnya bisa memakainya begitu sampai.
+          const kosong = Ui.sembunyikanFotoBelumSiap(areaCetak);
+          if (kosong > 0) {
+            Ui.toast(kosong + ' foto belum siap, kartu dicetak tanpa foto. ' +
+              'Cetak lagi nanti untuk lengkapi.', 'info', 6000);
           }
           return new Promise(function (res) {
-            setTimeout(function () { window.print(); res(true); }, 120);
+            setTimeout(function () { window.print(); res(true); }, 150);
           });
         });
       });

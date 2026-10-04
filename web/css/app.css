@@ -237,6 +237,10 @@ html5-qrcode #scan-anchor { border-radius: 6px !important; }
   .cetak-sisi__sisi + .cetak-sisi__sisi { page-break-before: always; }
   .cetak-sisi__sisi .kartu { width: 63mm; height: 88mm; aspect-ratio: auto; page-break-inside: avoid; border-color: #000; }
 
+  /* Foto yang belum siap disembunyikan oleh JS lewat .cetak-sembunyi. Tanda
+     "!" juga: di kertas hanya jadi noise, sedangkan barcode tetap terbaca. */
+  .kartu__foto img.cetak-sembunyi, .kartu__foto .avatar__galat { display: none !important; }
+
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
 .kv-list { display: flex; flex-direction: column; }

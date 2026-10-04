@@ -414,6 +414,50 @@ Kalau masih muncul, berarti deployment backend belum di-update — build yang
 perlu ada di `app.info` adalah **20** atau lebih tinggi. Cek di
 **Akun → Kondisi Server → Versi backend**.
 
+### Kartu tercetak tanpa foto / cetak lambat
+
+Kartu **tidak pernah ditahan oleh foto**. Barcode dan QR digambar dari data,
+jadi walau semua foto gagal dimuat, kartu tetap tercetak dan barcode-nya tetap
+bisa dipindai.
+
+Yang terjadi di layar:
+
+- Tombol **🖨 Cetak / Simpan PDF** hanya menunggu foto maksimal **2,5 detik**,
+  lalu mencetak apa adanya. Foto yang sudah siap ikut tercetak.
+- Foto yang belum siap disembunyikan (bukan dihapus) memakai kelas
+  `.cetak-sembunyi`, dan tanda `!` disembunyikan hanya untuk pencetakan lewat
+  `@media print` di `web/css/app.css`. Foto itu tetap ada di DOM, jadi
+  **mencetak kedua** bisa memakainya begitu fotonya tiba.
+- Notifikasi tidak merah — hanya info: _"N foto belum siap, kartu dicetak
+  tanpa foto. Cetak lagi nanti untuk lengkapi."_
+
+Kalau memang mau menunggu semua foto (kelas kecil atau jaringan bagus),
+centang **"Tunggu semua foto (lambat)"** — batasnya 60 detik, bukan 2,5 detik.
+Kalau timeout juga, kartu tetap tercetak.
+
+Memilih kelas yang berbeda membangun ulang kartu, jadi foto dimuat ulang.
+
+### Kalau kartu keluar dengan kotak foto kosong
+
+Itu normal kalau foto belum selesai: yang tampil cuma nama, NIS, dan barcode.
+ Supaya foto ikut tercetak:
+
+1._centang **"Tunggu semua foto (lambat)"**, lalu cetak ulang.
+2. Tunggu sampai kartu di layar tampil dengan foto (tanda `!` hilang).
+3. Cetak ulang.
+
+Kalau tetap kosong setelah itu, foto memang gagal diambil dari backend — bukan
+masalah pencetakan. Cek **Akun → Kondisi Server**: `proxy.foto` dan `proxy.foto.blob`
+kalau ada datanya, berarti masalahnya di sisi browser (cache lama, atau `Api.fotoSrc`
+gagal). Muat ulang paksa PWA dulu.
+
+Kode yang relevan:
+
+- `Ui.tungguFotoCetak` / `Ui.sembunyikanFotoBelumSiap` / `Ui.pulihkanFotoCetak`
+  di `web/js/ui.js` — logika pencetakan, sengaja dipisah agar bisa diuji tanpa
+  membuka dialog print.
+- `web/js/page-kartu.js` — batas 2,5 detik vs 60 detik dan pemanggilan `window.print()`.
+
 ### Pita kuning "Server belum diperbarui"
 
 Pita itu muncul di **atas** layar, sebelum topbar, dan hanya mendorong
