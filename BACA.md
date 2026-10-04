@@ -217,7 +217,7 @@ Sumber lambat yang sudah diukur per Juli 2026:
 | Satu panggilan API selalu 2,4–3,4 detik (biaya platform Apps Script + redirect) | Cache respons di memori 45 detik untuk semua aksi baca; berpindah halaman tidak mengambil ulang data yang sama |
 | Halaman rekap memakai dua panggilan berurutan | Sekarang `Promise.all`, jadi satu kali tunggu |
 | 40 siswa berarti 40 permintaan foto sekaligus | Antrean foto (maksimal 6 jalan bersamaan) + `IntersectionObserver` (foto hanya diambil saat barisnya terlihat) |
-| Daftar siswa memuat semua baris sekaligus | `siswa.daftar` dipaginasi 30 baris, tombol "Muat lagi" |
+| Daftar siswa memuat semua baris sekaligus | `siswa.daftar` dipaginasi 30 baris, tombol "Muat lagi" (butuh backend build 19) |
 | Halaman rekap/siswa kosong selama menunggu | Kerangka bayangan (`Ui.rangka`) tampil seketika |
 | Kesalahan tidak ada jalan keluar | `Ui.pesanGalat` menyertakan tombol "Coba lagi" |
 | Service worker menunggu GitHub Pages dulu | Navigasi jadi cache-first, pembaruan jalan di belakang; ada toast "Muat ulang" kalau versi baru sampai |
