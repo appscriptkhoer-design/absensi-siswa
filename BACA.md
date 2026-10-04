@@ -273,7 +273,10 @@ Aplikasi juga menampilkan pita kuning **"Server belum diperbarui"** di bawah
 layar kalau `build` lebih kecil dari `Api.BUILD_MIN` di `web/js/api.js`, jadi
 ketidakcocokan versi tidak lagi diam-diam.
 
-Naikkan `APP.BUILD` di `gas/Config.gs` setiap kali kamu deploy backend.
+Naikkan `APP.BUILD` di `gas/Config.gs` setiap kali kamu deploy backend, dan
+sesuaikan `Api.BUILD_MIN` di `web/js/api.js` dengan nilai yang sama. Kalau
+`BUILD_MIN` lebih besar dari build yang sedang hidup, pita peringatan akan
+selalu muncul aunque kodenya sebenarnya sudah benar.
 
 ### Foto gagal dimuat: tanda merah di kotak avatar
 
