@@ -259,6 +259,26 @@ ketidakcocokan versi tidak lagi diam-diam.
 
 Naikkan `APP.BUILD` di `gas/Config.gs` setiap kali kamu deploy backend.
 
+### Foto gagal dimuat: tanda merah di kotak avatar
+
+Tanda merah `!` di dalam kotak avatar atau kotak foto kartu berarti backend
+menolak permintaan foto. Arahkan kursor ke tandanya untuk melihat pesan
+aslinya:
+
+| Pesan | Artinya | Solusi |
+| --- | --- | --- |
+| `AUTH: Sesi tidak ditemukan` | sesi sudah habis | masuk lagi |
+| `FORBIDDEN: ...` | foto siswa sekolah lain | bukan bug |
+| `MEDIA: Foto tidak ditemukan` | `file_id_foto` di sheet tidak cocok dengan isi folder Drive | cek ulang ID-nya |
+| `text/html` | backend membalas halaman error, bukan gambar | backend versi lama, update deployment |
+
+`MEDIA: Foto tidak ditemukan` paling sering terjadi karena `file_id_foto`
+diisi manual dengan ID yang salah, atau	ID file itu sudah dihapus. ID yang
+benar bisa dilihat dari URL folder Drive: `drive.google.com/drive/folders/...`
+— bukan dari `uc?export=view&id=`. Untuk memastikan, buka
+`https://drive.google.com/uc?export=view&id=<file_id_foto>` di browser; kalau
+fotonya muncul, berarti Drive punya file-nya.
+
 ### Foto tersimpan tapi tetap kosong
 
 Simpan siswa sukses, toast hijau muncul, tapi fotonya tidak pernah muncul.
