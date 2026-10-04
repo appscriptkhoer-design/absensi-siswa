@@ -53,11 +53,22 @@ Hal.daftar('#/kartu', {
     wadah.appendChild(areaCetak);
 
     function fotoSiswa(s, besar) {
-      const src = s.foto ? s.foto : (s.foto_proxy ? Api.fotoUrl(s.foto_proxy) : '');
+      // Proxy bertoken dulu, baru URL publik Drive sebagai cadangan.
+      const proxy = s.foto_proxy ? Api.fotoUrl(s.foto_proxy) : '';
+      const publik = s.foto || '';
+      const src = proxy || publik;
       if (!src) return h('div', { class: 'kartu__foto', text: s.pravatar || '?' });
       const img = h('img', { src: src, alt: '' });
       const box = h('div', { class: 'kartu__foto' }, [img]);
-      img.addEventListener('error', function () { box.textContent = s.pravatar || '?'; });
+      let sudahCadangan = false;
+      img.addEventListener('error', function () {
+        if (!sudahCadangan && proxy && publik) {
+          sudahCadangan = true;
+          img.src = publik;
+          return;
+        }
+        box.textContent = s.pravatar || '?';
+      });
       if (besar) box.style.width = '30mm';
       return box;
     }
@@ -219,7 +230,7 @@ Hal.daftar('#/kartu', {
     tombolCetak.addEventListener('click', function () {
       const terpilih = data.filter(function (s) { return semuaTerpilih[String(s.id)]; });
       if (!terpilih.length) { Ui.toast('Pilih minimal satu siswa.', 'err'); return; }
-      const cetak = Ui.tombolMuat(tombolCetak, function () {
+      Ui.tombolMuat(tombolCetak, function () {
         return tungguGambar().then(function (jml) {
           const gagal = terpilih.length - jml;
           if (gagal > 0) {
@@ -230,7 +241,6 @@ Hal.daftar('#/kartu', {
           });
         });
       });
-      cetak();
     });
 
     function muat() {

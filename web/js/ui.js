@@ -145,13 +145,24 @@ const Ui = {
   avatar: function (data, ukuran) {
     const cls = 'avatar' + (ukuran === 'sm' ? ' avatar--sm' : ukuran === 'lg' ? ' avatar--lg' : '');
     const box = h('div', { class: cls, text: data && data.pravatar ? data.pravatar : '?' });
-    const src = data && data.foto ? data.foto : (data && data.foto_proxy ? Api.fotoUrl(data.foto_proxy) : '');
-    if (src) {
-      const img = h('img', { src: src, alt: '', loading: 'lazy' });
-      img.addEventListener('error', function () { box.textContent = (data && data.pravatar) || '?'; });
-      box.textContent = '';
-      box.appendChild(img);
-    }
+    // Proxy bertoken selalu dicoba lebih dulu: URL thumbnail Drive sering
+    // ditolak saat di-hotlink dari origin PWA, sedangkan proxy kita sendiri.
+    const proxy = data && data.foto_proxy ? Api.fotoUrl(data.foto_proxy) : '';
+    const publik = data && data.foto ? data.foto : '';
+    if (!proxy && !publik) return box;
+
+    const img = h('img', { src: proxy || publik, alt: '', loading: 'lazy' });
+    let sudahCadangan = false;
+    img.addEventListener('error', function () {
+      if (!sudahCadangan && proxy && publik) {
+        sudahCadangan = true;
+        img.src = publik;
+        return;
+      }
+      box.textContent = (data && data.pravatar) || '?';
+    });
+    box.textContent = '';
+    box.appendChild(img);
     return box;
   },
 
@@ -179,19 +190,23 @@ const Ui = {
     });
   },
 
+  // Jalankan fn() langsung dan kembalikan promise-nya.
+  // Versi lama mengembalikan thunk yang harus dipanggil manual; 9 dari 11 call
+  // site lupa memanggilnya sehingga tombol diam-diam tidak melakukan apa pun.
   tombolMuat: function (el, fn) {
     const labelAsli = el.textContent;
-    return function () {
-      el.disabled = true;
-      el.textContent = 'Memproses…';
-      return Promise.resolve(fn()).catch(function (err) {
+    el.disabled = true;
+    el.textContent = 'Memproses…';
+    return Promise.resolve()
+      .then(fn)
+      .catch(function (err) {
         Ui.galat(err);
-      }).then(function (r) {
+      })
+      .then(function (r) {
         el.disabled = false;
         el.textContent = labelAsli;
         return r;
       });
-    };
   },
 
   unduh: function (hasil, namaCadangan) {

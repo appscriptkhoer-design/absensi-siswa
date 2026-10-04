@@ -69,7 +69,7 @@ Hal.daftar('#/masuk', {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       pesanError('');
-      const jalankan = Ui.tombolMuat(tombol, function () {
+      Ui.tombolMuat(tombol, function () {
         if (mode === 'daftar') {
           if (!sekolahSelect.value) {
             Ui.toast('Pilih sekolah terlebih dahulu.', 'err');
@@ -90,8 +90,7 @@ Hal.daftar('#/masuk', {
           Api.simpanSesi(res);
           return res;
         });
-      });
-      jalankan().then(function (hasil) {
+      }).then(function (hasil) {
         if (!hasil) return;
         if (mode === 'daftar') {
           Ui.modal({

@@ -215,6 +215,29 @@ gambar) sebelum memanggil `window.print()`. Browser tidak menunggu gambar saat
 dialog cetak dibuka, jadi tanpa itu foto siswa bisa hilang dari PDF. Foto yang
 gagal dimuat tidak membatalkan cetak; hanya muncul toast berisi jumlahnya.
 
+Dua jebakan CSS yang pernah membuat hasil cetak kosong:
+
+- `body > * { display: none }` juga menyembunyikan `<main id="shell">`, dan
+  `display:none` pada induk menghapus seluruh turunannya — halaman cetak jadi
+  kosong meski `#hal-kartu` sudah `display:block`. Aturannya harus
+  `body > *:not(#shell)`.
+- `.app` ada di `#shell` itu sendiri, jadi `#hal-kartu .app` tidak pernah cocok.
+
+Sumber foto memakai urutan: **proxy bertoken dulu**
+(`?action=foto&id=..&t=..`), baru URL `drive.google.com/thumbnail` sebagai
+cadangan. Thumbnail Drive sering ditolak saat di-hotlink dari origin PWA
+sehingga muncul kotak kosong; proxy selalu milik aplikasi sendiri. Backend
+menyertakan `foto_proxy` untuk semua siswa, bukan hanya saat `foto_publik` mati.
+
+### Tombol yang "tidak terjadi apa-apa"
+
+`Ui.tombolMuat(el, fn)` menjalankan `fn()` **langsung** dan mengembalikan
+promise-nya. Versi lama mengembalikan thunk yang harus dipanggil manual, dan
+9 dari 11 call site melewatkannya — tombol Simpan pengaturan sekolah, setujui
+guru, ganti role, tes Telegram, kirim ulang notifikasi, dan ganti sekolah aktif
+semuanya diam-diam tidak melakukan apa pun. Kalau sebuah tombol tiba-tiba tidak
+bereaksi, periksa dulu apakah `fn`-nya benar-benar dipanggil.
+
 ### Telegram (opsional)
 
 1. Buat bot lewat [@BotFather](https://t.me/BotFather), salin token.

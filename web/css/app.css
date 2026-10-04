@@ -220,9 +220,14 @@ html5-qrcode #scan-anchor { border-radius: 6px !important; }
     color: #000 !important;
   }
 
-  body > * { display: none !important; }
+  /* #shell adalah induk dari area cetak. Aturan lama `body > *` menyembunyikan
+     #shell, dan `display:none` pada induk menghapus seluruh subtree, hasilnya
+     halaman cetak selalu kosong. Yang disembunyikan hanya saudara #shell. */
+  body > *:not(#shell) { display: none !important; }
+  #shell { display: block !important; padding: 0 !important; max-width: none !important; }
+
   #hal-kartu { display: block !important; }
-  #hal-kartu .app { padding: 0 !important; max-width: none !important; }
+  #hal-kartu > *:not(.cetak-sisi) { display: none !important; }
 
   .cetak-aksi, .navbawah, .topbar, .toast, .modal-backdrop { display: none !important; }
 
