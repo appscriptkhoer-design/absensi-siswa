@@ -319,12 +319,14 @@ textarea.input { min-height: 90px; resize: vertical; }
 
 .navbawah__item {
   flex: 1;
+  min-width: 0;
   min-height: 54px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
+  padding: 0 2px;
   border: 2px solid transparent;
   border-radius: var(--radius-sm);
   font-size: 0.62rem;
@@ -335,6 +337,22 @@ textarea.input { min-height: 90px; resize: vertical; }
   background: transparent;
   cursor: pointer;
   text-decoration: none;
+  overflow: hidden;
+}
+
+/* Enam menu harus tetap muat di HP 360px: label dipangkas, bukan melebarkan
+   layout. Navbar ini fixed, jadi saat melebar halaman ikut bergeser. */
+.navbawah__item > span:last-child {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 380px) {
+  .navbawah { gap: 3px; padding-left: calc(4px + var(--safe-l)); padding-right: calc(4px + var(--safe-r)); }
+  .navbawah__item { font-size: 0.56rem; min-height: 50px; }
+  .navbawah__ikon { font-size: 1.1rem; }
 }
 
 .navbawah__item[aria-current="page"] { background: var(--yellow); border-color: var(--ink); color: var(--ink); }

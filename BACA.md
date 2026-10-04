@@ -82,46 +82,62 @@ root, `clasp push` akan gagal dengan pesan manifest tidak ditemukan.
 | Kunci | Contoh | Keterangan |
 | --- | --- | --- |
 | `API_SALT` | (biarkan kosong) | Diisi otomatis oleh `setupSpreadsheet()` |
-| `OWNER_EMAIL` | `guru@sekolah.sch.id` | Wajib jika email akun tidak terbaca |
+| `SPREADSHEET_ID` | `1jH7LOz6...` | Wajib bila proyek tidak *bound* ke spreadsheet |
+| `OWNER_EMAIL` | `guru@sekolah.sch.id` | **Wajib.** Email admin yang akan dibuatkan akun |
 | `TELEGRAM_TOKEN` | `123456:AAF...` | Dari @BotFather, opsional |
 | `TELEGRAM_WEBHOOK_SECRET` | `rahasia-panjang` | Opsional, untuk verifikasi webhook |
+
+Isi `OWNER_EMAIL` dan `SPREADSHEET_ID` lebih dulu, karena `pasangAdmin()`
+membaca keduanya dari Script Properties.
 
 ### 3.3b Hubungkan spreadsheet yang sudah ada
 
 Bila spreadsheet sudah dibuat lebih dulu dan proyek Apps Script **tidak**
 terikat padanya (dibuat lewat <https://script.google.com>, bukan lewat
-*Extensions → Apps Script*), jalankan fungsi ini sekali dari editor:
+*Extensions → Apps Script*), cukup isi Script Property `SPREADSHEET_ID` dengan
+ID spreadsheet tersebut.
 
-```js
-setSpreadsheetId('1jH7LOz6ql3xEWPtkjE3YyIA6bu2IFEbvHJydNB5ZrKQ');
-```
-
-Fungsi ini memverifikasi bahwa spreadsheet bisa dibuka oleh akun ini, lalu
+Alternatifnya, jalankan `setSpreadsheetId('ID_SPREADSHEET')` dari editor. Fungsi
+ini memverifikasi bahwa spreadsheet bisa dibuka oleh akun ini, lalu
 menyimpannya sebagai Script Property `SPREADSHEET_ID`. Kalau proyek sudah
-*bound*, fungsi ini tidak perlu dijalankan — `setupSpreadsheet()` otomatis
-memakai spreadsheet yang terikat.
+*bound*, langkah ini tidak perlu — `setupSpreadsheet()` otomatis memakai
+spreadsheet yang terikat.
 
-### 3.4 Inisialisasi
+### 3.4 Inisialisasi (satu kali jalan)
 
-Di editor Apps Script, pilih fungsi `setupSpreadsheet` → **Run** sekali. Ikuti
-izinkan yang muncul. Fungsi ini membuat spreadsheet, sheet, format header,
-folder foto, dan `API_SALT`.
+Di editor Apps Script, pilih fungsi **`pasangAdmin`** → **Run** sekali. Ikuti
+izinkan yang muncul. Fungsi ini menampilkan dialog dan melakukan semuanya:
 
-Kemudian jalankan `seedOwner` (opsional bila ingin login pertama tanpa daftar
-mandiri) dan/atau `buatSekolahPertama`:
+1. membuat spreadsheet, sheet, format header, folder foto, dan `API_SALT`
+2. membuat akun `superadmin` dari `OWNER_EMAIL`
+3. membuat sekolah pertama beserta titik geofence
 
-```js
-seedOwner('PasswordOwnerYangKuat123');
-buatSekolahPertama('SDN Contoh 01', 'SCH01', -6.2, 106.816666, 150, 'gurucontoh', 'PasswordOwnerYangKuat123');
-```
+Isi dialog yang muncul:
+
+| Dialog | Isi |
+| --- | --- |
+| Password admin | Kosongkan untuk dibuatkan otomatis (`Adm-xxxxxxxxxx`) |
+| Nama sekolah pertama | Contoh: `SDN Contoh 01` |
+| Kode sekolah | 3-6 huruf/angka tanpa spasi, dipakai untuk kode absen |
+| Latitude / Longitude | Titik pusat sekolah, contoh `-6.200000` / `106.816666` |
+| Radius geofence | Dalam meter, minimal 20 |
 
 Buka menu **Executions** untuk melihat `Logger.log` berisi username, password,
-`SPREADSHEET_ID`, dan `SPREADSHEET_URL`.
+`SPREADSHEET_ID`, `SPREADSHEET_URL`, dan id sekolah. **Salin password dari
+sana**, karena tidak ditampilkan lagi di mana pun.
+
+Fungsi ini aman dijalankan berulang: sheet yang sudah ada tidak dihapus,
+akun admin yang sudah ada hanya diperbarui passwordnya, dan sekolah pertama
+tidak dibuat dua kali.
+
+Fungsi terpisah `setupSpreadsheet()`, `seedOwner()`, dan
+`buatSekolahPertama()` tetap tersedia bila perlu menjalankan tiap tahap
+secara manual.
 
 > **Penting:** login pertama harus memakai akun yang emailnya tercatat sebagai
-> `superadmin` (dari `OWNER_EMAIL` atau email pemilik proyek). Akun lain yang
-> mendaftar mandiri otomatis menjadi `guru` berstatus `pending` dan harus
-> disetujui admin sekolah dari halaman **Administrasi → Pengguna**.
+> `superadmin` (dari `OWNER_EMAIL`). Akun lain yang mendaftar mandiri otomatis
+> menjadi `guru` berstatus `pending` dan harus disetujui admin sekolah dari
+> halaman **Administrasi → Pengguna**.
 
 ### 3.5 Deploy sebagai Web App
 
@@ -160,13 +176,26 @@ Buka URL hasilnya, lalu:
 
 ## 5. Konfigurasi sekolah
 
-Menu **Administrasi → Sekolah**:
+Menu **Atur** di navbar bawah (atau **Akun → Pengaturan**). Tab *Koneksi
+Server* menyimpan URL Web App; isinya boleh berupa URL lengkap yang berakhiran
+`/exec`, bagian `/exec` dilepas otomatis sehingga alamatnya tidak menjadi
+`/exec/exec`. Kartu *Data Sekolah* hanya muncul bila sudah masuk sebagai admin
+sekolah atau super admin, karena backend menolak perubahan school setting dari
+role lain.
+
+Yang bisa diubah:
 
 - Jam masuk, batas telat (menit), jam pulang.
 - Latitude, longitude, dan radius absen (meter). Ambil koordinat dari Google Maps
   dengan klik lokasi sekolah → salin angka *Latitude* / *Longitude*.
 - **Foto siswa publik**: biarkan mati agar foto hanya diakses lewat URL
-  bertoken yang berlaku 30 hari.
+  bertoken yang berlaku 30 hari. Saat mati, kolom `foto` kosong dan PWA memakai
+  `foto_proxy` (`/exec?action=foto&id=<fileId>&t=<token>`) yang dilayani
+  `doGet`. Response-nya dikirim sebagai `Byte[]` mentah dengan
+  `Content-Type` asli, jadi jangan diubah menjadi teks.
+
+Menu **Administrasi → Sekolah** (tab *Sekolah*, sudah terbuka juga untuk role
+admin) menampilkan form yang sama dan ditautkan dari halaman Pengaturan.
 
 Cara kerja radius GPS:
 
@@ -178,6 +207,13 @@ Cara kerja radius GPS:
   disengaja agar absen tidak hilang total; Radius 0 berarti geofence dimatikan.
 - Absen manual oleh admin/guru tidak pernah tunduk pada radius, karena operator
   sudah berada di depan siswa.
+
+### Kartu & cetak PDF
+
+Tombol cetak menunggu seluruh `<img>` selesai diunduh (maksimal 8 detik per
+gambar) sebelum memanggil `window.print()`. Browser tidak menunggu gambar saat
+dialog cetak dibuka, jadi tanpa itu foto siswa bisa hilang dari PDF. Foto yang
+gagal dimuat tidak membatalkan cetak; hanya muncul toast berisi jumlahnya.
 
 ### Telegram (opsional)
 
@@ -225,7 +261,12 @@ token Meta Cloud API dan template pesan disetujui. Isi `wa_aktif`, `wa_phone_id`
 | `URL API belum diatur` | Buka **Pengaturan**, tempel URL `/exec` |
 | `Terjadi kesalahan di server` (kode `SERVER`) | Buka **Executions** di Apps Script untuk melihat stack trace |
 | `Akses Ditolak` | Rute `#/admin` hanya untuk `superadmin` dan `admin` |
-| `Password lama salah` | Password admin awal dibuat oleh `seedOwner()`; ganti lewat sheet `USERS` dengan baris baru, atau jalankan `seedOwner` lagi |
+| `Password lama salah` | Password admin awal dibuat oleh `pasangAdmin()`; jalankan `pasangAdmin` lagi (kosongkan dialog password) atau ganti lewat sheet `USERS` dengan baris baru |
+| `OWNER_EMAIL belum diisi` | Buka *Project Settings → Script Properties*, tambahkan `OWNER_EMAIL` dengan email admin Anda, lalu jalankan `pasangAdmin` |
+| `Specified permissions are not sufficient to call Session.getEffectiveUser` | Jangan rely pada email akun. Isi Script Property `OWNER_EMAIL`; kode sudah tidak memakai `Session.getEffectiveUser()` sehingga tidak butuh scope `userinfo.email` |
+| `deleteSheet is not a function` saat setup | Sudah diperbaiki di versi terbaru. Jalankan *Deploy → Manage deployments →* pensil → *Version: New version* agar deployment memakai kode baru |
+| `The parameters (number[],String,Utilities.Charset) don't match` | `computeHmacSha256Signature` mengembalikan `Byte[]`, harus di-encode ulang tiap iterasi. Sudah diperbaiki; cukup *Version: New version* |
+| Login ditolak padahal password benar | Password di-hash dengan `API_SALT`. Kalau `API_SALT` berubah, semua hash lama tidak valid — jangan dihapus Script Property `API_SALT` setelah setup |
 | Semua siswa `belum` di rekap | Absensi dicatat pada tanggal berbeda; pastikan zona waktu proyek = Asia/Jakarta |
 | Halaman kosong setelah update | `clasp push` selesai tetapi deployment belum "New version", atau cache service worker — buka **Akun → Hapus Cache** |
 | Kamera tidak bisa dibuka | Aplikasi harus berada di origin HTTPS; `file://` dan HTTP tidak diizinkan browser |
@@ -234,16 +275,35 @@ token Meta Cloud API dan template pesan disetujui. Isi `wa_aktif`, `wa_phone_id`
 ### Uji otomatis lokal
 
 ```bash
-bash test/checkall.sh     # sintaks gas/*.gs + web/js/*.js + JSON + simulator
-node test/gas-sim.js      # atau simulator saja
+bash test/checkall.sh        # sintaks gas/*.gs + web/js/*.js + JSON + 2 simulator
+node test/gas-sim.js         # simulator backend saja
+node test/web-sim.js         # simulator frontend saja
 ```
 
-Script ini menyalin seluruh `gas/*.gs` ke sandbox Node (Spreadsheet, Lock,
-Properties, dan Utilities direplika), lalu menjalankan 82 pemeriksaan: bootstrap
-spreadsheet, seed owner, persetujuan guru, lockout, isolasi antar sekolah,
-regresi patch baris, absensi + geofence, rekap harian/bulanan, CSV harian &
-bulanan, dashboard, logout, dan migrasi sheet SISWA lama. Semua harus keluar
-`OK`. Tidak ada jaringan, tidak ada Sheet sungguhan.
+`test/web-sim.js` menjalankan `api.js`, `ui.js`, `app.js`, dan `page-setelan.js`
+di atas DOM tiruan (tanpa browser, tanpa jaringan) untuk mengunci regresi
+navbar: `render()` dan `gambarUlang()` harus menyisipkan tepat satu node
+`.navbawah`, memindahkannya bukan menggandakan, dan route `#/pengaturan`
+harus selalu punya navbar meski belum ada URL API.
+
+`test/gas-sim.js` menyalin seluruh `gas/*.gs` ke sandbox Node (Spreadsheet,
+Lock, Properties, Utilities, dan Drive direplika), lalu menjalankan 130
+pemeriksaan:
+bootstrap spreadsheet, seed owner, persetujuan guru, lockout, isolasi antar
+sekolah, regresi patch baris, absensi + geofence, rekap harian/bulanan, CSV
+harian & bulanan, dashboard, logout, migrasi sheet SISWA lama, penghapusan
+sheet bawaan, `pasangAdmin` end-to-end, dan penanganan `Byte[]` pada HMAM serta
+base64. Semua harus keluar `OK`. Tidak ada jaringan, tidak ada Sheet
+sungguhan.
+
+> Stub simulator sengaja dibuat sedekat mungkin dengan API asli, termasuk
+> `computeHmacSha256Signature` yang mengembalikan `Byte[]` bertanda dan
+> hanya menerima dua overload `(String, String)` dan
+> `(String, String, Charset)`. Stub yang terlalu longgar pernah menyembunyikan
+> bug produksi. Contoh terbaru: `ContentService.createTextOutput()` melempar
+> `TypeError` bila diberi Blob — itulah yang membuat bug foto yang dulu
+> mengirim `[object Object]` langsung gagal di simulator, bukan lolos ke
+> produksi.
 
 Jalankan ulang `setupSpreadsheet()` aman pada spreadsheet lama: bila sheet
 `SISWA` belum punya kolom `sekolah_id`, kolom itu disisipkan di posisi kedua dan

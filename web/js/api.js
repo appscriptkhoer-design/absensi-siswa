@@ -26,8 +26,20 @@ const K = {
 };
 
 const Api = {
+  // Basis URL deployment TANPA /exec. Apps Script menaruh endpoint di
+  // <basis>/exec, jadi /exec tidak boleh ikut tersimpan. Kalau user menyalin
+  // URL lengkap dari editor (yang berakhiran /exec), bagian itu dibuang di
+  // sini supaya tidak muncul /exec/exec.
+ normalisasiUrl: function (v) {
+    return String(v === null || v === undefined ? '' : v)
+      .trim()
+      .replace(/\/+$/, '')
+      .replace(/\/exec$/i, '')
+      .replace(/\/+$/, '');
+  },
+
   url: function () {
-    return String(Simpan.ambil(K.URL, '') || '').replace(/\/+$/, '');
+    return this.normalisasiUrl(Simpan.ambil(K.URL, ''));
   },
 
   urlAwal: function () { return this.url() + '/exec'; },
@@ -35,7 +47,7 @@ const Api = {
   adaUrl: function () { return this.url().length > 0; },
 
   aturUrl: function (u) {
-    Simpan.simpan(K.URL, String(u || '').trim().replace(/\/+$/, ''));
+    Simpan.simpan(K.URL, this.normalisasiUrl(u));
   },
 
   token: function () { return Simpan.ambil(K.TOKEN, '') || ''; },
@@ -75,7 +87,7 @@ const Api = {
   fotoUrl: function (proxy) {
     if (!proxy) return '';
     if (proxy.indexOf('http') === 0) return proxy;
-    return this.url() + '/exec' + proxy;
+    return this.urlAwal() + proxy;
   },
 
   kelasGalat: function (err) {

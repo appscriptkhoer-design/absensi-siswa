@@ -23,7 +23,6 @@ Hal.daftar('#/admin', {
     function gambarTab() {
       tabRow.innerHTML = '';
       daftarTab.forEach(function (x) {
-        if (x.k === 'sekolah' && user.role !== 'superadmin') return;
         const c = h('button', {
           class: 'chip', type: 'button',
           'aria-pressed': x.k === tab ? 'true' : 'false',

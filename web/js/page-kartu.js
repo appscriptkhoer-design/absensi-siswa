@@ -193,10 +193,44 @@ Hal.daftar('#/kartu', {
       });
     }
 
+    // Browser tidak menunggu <img> yang belum selesai diunduh ketika
+    // window.print() dipanggil. Foto yang masih kosong akan hilang dari PDF,
+    // jadi cetak baru jalan setelah semua gambar selesai ( atau gagal ).
+    function tungguGambar() {
+      const gambar = $$('img', areaCetak);
+      return Promise.all(gambar.map(function (im) {
+        if (im.complete && im.naturalWidth > 0) return Promise.resolve(true);
+        return new Promise(function (res) {
+          let selesai = false;
+          const done = function (ok) {
+            if (selesai) return;
+            selesai = true;
+            res(ok);
+          };
+          im.addEventListener('load', function () { done(true); }, { once: true });
+          im.addEventListener('error', function () { done(false); }, { once: true });
+          setTimeout(function () { done(!!im.naturalWidth); }, 8000);
+        });
+      })).then(function (hasil) {
+        return hasil.filter(Boolean).length;
+      });
+    }
+
     tombolCetak.addEventListener('click', function () {
       const terpilih = data.filter(function (s) { return semuaTerpilih[String(s.id)]; });
       if (!terpilih.length) { Ui.toast('Pilih minimal satu siswa.', 'err'); return; }
-      window.print();
+      const cetak = Ui.tombolMuat(tombolCetak, function () {
+        return tungguGambar().then(function (jml) {
+          const gagal = terpilih.length - jml;
+          if (gagal > 0) {
+            Ui.toast(gagal + ' foto gagal dimuat, kartu dicetak tanpa foto.', 'err');
+          }
+          return new Promise(function (res) {
+            setTimeout(function () { window.print(); res(true); }, 120);
+          });
+        });
+      });
+      cetak();
     });
 
     function muat() {

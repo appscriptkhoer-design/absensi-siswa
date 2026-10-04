@@ -14,6 +14,17 @@ Hal.daftar('#/akun', {
 
     wadah.appendChild(h('h1', { text: 'Akun Saya' }));
 
+    wadah.appendChild(h('a', {
+      class: 'item',
+      href: App.RUTE.PENGATURAN,
+      style: 'text-decoration:none;color:inherit;margin-bottom:12px'
+    }, [
+      h('div', { class: 'item__body' }, [
+        h('div', { class: 'item__nama', text: '⚙️ Pengaturan' }),
+        h('div', { class: 'item__meta', text: 'Ubah data sekolah, titik absen, jam, dan URL server.' })
+      ])
+    ]));
+
     wadah.appendChild(h('div', { class: 'card' }, [
       h('div', { class: 'suhu' }, [
         Ui.avatar({ pravatar: (u.nama || u.username || '?').slice(0, 1).toUpperCase() }, 'lg'),

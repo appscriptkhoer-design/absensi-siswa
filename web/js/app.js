@@ -25,7 +25,8 @@ const App = {
     REKAP: '#/rekap',
     ADMIN: '#/admin',
     AKUN: '#/akun',
-    SETELAN: '#/setelan'
+    PENGATURAN: '#/pengaturan',
+    SETELAN: '#/pengaturan'
   },
 
   PERLU_AUTH: ['#/', '#/scan', '#/siswa', '#/kartu', '#/rekap', '#/admin', '#/akun'],
@@ -35,7 +36,8 @@ const App = {
     { rute: '#/scan', label: 'Scan', ikon: '📷' },
     { rute: '#/siswa', label: 'Siswa', ikon: '🎒' },
     { rute: '#/rekap', label: 'Rekap', ikon: '📊' },
-    { rute: '#/akun', label: 'Akun', ikon: '👤' }
+    { rute: '#/akun', label: 'Akun', ikon: '👤' },
+    { rute: '#/pengaturan', label: 'Atur', ikon: '⚙️' }
   ],
 
   parse: function () {
@@ -93,6 +95,12 @@ const App = {
     return bar;
   },
 
+  tambahNav: function (ruteAktif) {
+    const shell = $('#shell');
+    if (!shell) return;
+    shell.appendChild(this.nav(ruteAktif));
+  },
+
   pergi: function (rute) {
     if (location.hash === rute) { App.render(); return; }
     location.hash = rute;
@@ -101,11 +109,15 @@ const App = {
   gambarUlang: function () {
     const shell = $('#shell');
     if (!shell) return;
-    const lama = document.querySelector('.navbawah');
-    if (lama) lama.remove();
-    const top = document.querySelector('.topbar');
-    if (top) top.replaceWith(this.topbar());
-    shell.appendChild(this.nav(this.parse().rute));
+    const topBaru = this.topbar();
+    const topLama = shell.querySelector('.topbar');
+    if (topLama) topLama.replaceWith(topBaru);
+    else shell.insertBefore(topBaru, shell.firstChild);
+
+    const navBaru = this.nav(this.parse().rute);
+    const navLama = shell.querySelector('.navbawah');
+    if (navLama) navLama.replaceWith(navBaru);
+    else shell.appendChild(navBaru);
   },
 
   render: function () {
@@ -117,9 +129,10 @@ const App = {
 
     if (!Api.adaUrl()) {
       shell.appendChild(this.topbar());
-      const wadah = h('section', { class: 'halaman aktif', id: 'hal-setelan' });
+      const wadah = h('section', { class: 'halaman aktif', id: 'hal-pengaturan' });
       shell.appendChild(wadah);
-      Hal[this.RUTE.SETELAN].render(wadah);
+      Hal[this.RUTE.PENGATURAN].render(wadah);
+      this.tambahNav(p.rute);
       return;
     }
 
@@ -149,7 +162,7 @@ const App = {
             })
           ])
         ]));
-        this.nav(p.rute);
+        this.tambahNav(p.rute);
         return;
       }
     }
@@ -160,7 +173,7 @@ const App = {
     const loader = Ui.muat();
     wadah.appendChild(loader);
     shell.appendChild(wadah);
-    this.nav(p.rute);
+    this.tambahNav(p.rute);
 
     const buangLoader = function () { if (loader.parentNode) loader.remove(); };
     let jalankan;
