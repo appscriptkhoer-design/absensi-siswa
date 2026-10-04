@@ -229,6 +229,30 @@ cadangan. Thumbnail Drive sering ditolak saat di-hotlink dari origin PWA
 sehingga muncul kotak kosong; proxy selalu milik aplikasi sendiri. Backend
 menyertakan `foto_proxy` untuk semua siswa, bukan hanya saat `foto_publik` mati.
 
+### Foto tersimpan tapi tetap kosong
+
+Simpan siswa sukses, toast hijau muncul, tapi fotonya tidak pernah muncul.
+Penyebabnya hampir selalu **kolom `file_id_foto` tidak ada di sheet `SISWA`**.
+Db dulu memetakan baris ke objek berdasarkan *posisi* kolom, jadi pada sheet
+yang dibuat dari versi kode lama:
+
+- `file_id_foto` tidak ada di header → nilainya tidak pernah ditulis, dan
+  `Db.gabung_` membuang key yang tidak dikenal tanpa memberi tahu.
+- Kolom setelah titik yang hilang ikut bergeser, jadi `kode_ortu` /
+  `telegram_chat_id` bisa tertukar dengan kolom tetangganya.
+
+Sekarang Db memetakan berdasarkan **nama** kolom, dan `Db.headerAktif_()`
+menambahkan kolom yang kurang di ujung sheet secara otomatis saat pertama kali
+dipakai — jadi spreadsheet lama tidak perlu dimanualkan dan data lama tidak
+bergeser. Kalau muncul error `CONFIG: Kolom "..." tidak ada di sheet`, itu
+bug kode yang harus diperbaiki di `Schema`, bukan masalah spreadsheet.
+
+Untuk memeriksa sendiri:
+
+```
+siswa perbarui → buka sheet SISWA → kolom file_id_foto terisi?
+```
+
 ### Tombol yang "tidak terjadi apa-apa"
 
 `Ui.tombolMuat(el, fn)` menjalankan `fn()` **langsung** dan mengembalikan
