@@ -125,22 +125,52 @@ const App = {
   // Selama backend masih versi lama, gejalanya muncul tanpa error sama sekali
   // (foto siswa tidak tampil, pengaturan sekolah tidak tersimpan). Pita
   // peringatan ini membuat ketidakcocokan versi itu kelihatan.
+  // Pita peringatan versi backend.
+  //
+  // Diletakkan sebagai anak pertama <body>, sebelum #shell, dan memakai
+  // position: sticky — jadi mendorong konten ke bawah, bukan menutupi
+  // apa pun. Versi sebelumnya position: fixed di bawah layar dengan z-index
+  // lebih besar dari navbar, jadi pita itu menutupi navigation bawah.
+  //
+  // Teksnya dibuat ringkas; langkah perbaikan ada di balik tombol "Detail"
+  // supaya pita ini tidak memakan layar.
   peringatanBuild: function () {
     return Api.cekBuild().then(function (build) {
-      if (!Api.buildRendah()) return;
+      // Pita yang sudah ada dibersihkan lebih dulu, lalu dipasang lagi kalau
+      // memang masih perlu. Kalau tidak, pita lama akan tetap menempel
+      // padahal server sudah diperbarui.
       const lama = document.getElementById('peringatan-build');
       if (lama) lama.remove();
-      const el = h('div', { id: 'peringatan-build', class: 'peringatan-build' }, [
-        h('strong', { text: 'Server belum diperbarui' }),
-        h('span', {
-          text: (build
-            ? 'Server masih build ' + build + ', aplikasi butuh build ' + Api.BUILD_MIN + '. '
-            : 'Server tidak melaporkan build. ') +
-            'Foto siswa bisa tidak tampil dan pengaturan sekolah bisa gagal tersimpan. ' +
-            'Di Apps Script: Deploy > Manage deployments > edit deployment > Version: New version.'
-        })
+      if (!Api.buildRendah()) return;
+      const ringkas = build
+        ? 'Server masih build ' + build + ', aplikasi butuh ' + Api.BUILD_MIN + '.'
+        : 'Server tidak melaporkan versi build.';
+      const rinci = h('div', { class: 'peringatan-build__rinci', hidden: true }, [
+        h('p', { text: 'Foto siswa bisa tidak tampil, pengaturan sekolah bisa gagal tersimpan, dan daftar siswa belum terpaginasi.' }),
+        h('p', {}, [
+          h('strong', { text: 'Di Apps Script: ' }),
+          'Deploy > Manage deployments > edit deployment yang dipakai > Version: New version > Authorize.'
+        ]),
+        h('p', { text: 'Jangan buat deployment baru — URL barunya tidak tersimpan di perangkat yang lain.' })
       ]);
-      document.body.appendChild(el);
+      const btn = h('button', {
+        class: 'peringatan-build__tombol', type: 'button', text: 'Detail',
+        onclick: function () {
+          const buka = rinci.hasAttribute('hidden');
+          if (buka) rinci.removeAttribute('hidden');
+          else rinci.setAttribute('hidden', '');
+          btn.textContent = buka ? 'Tutup' : 'Detail';
+        }
+      });
+      const el = h('div', { id: 'peringatan-build', class: 'peringatan-build' }, [
+        h('div', { class: 'peringatan-build__baris' }, [
+          h('strong', { text: 'Server belum diperbarui' }),
+          h('span', { class: 'peringatan-build__ringkas', text: ringkas }),
+          btn
+        ]),
+        rinci
+      ]);
+      document.body.insertBefore(el, document.body.firstChild);
     });
   },
 

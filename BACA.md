@@ -414,6 +414,21 @@ Kalau masih muncul, berarti deployment backend belum di-update — build yang
 perlu ada di `app.info` adalah **20** atau lebih tinggi. Cek di
 **Akun → Kondisi Server → Versi backend**.
 
+### Pita kuning "Server belum diperbarui"
+
+Pita itu muncul di **atas** layar, sebelum topbar, dan hanya mendorong
+konten ke bawah — tidak menutupi navigation bawah maupun tombol
+apa pun. Teksnya ringkas; tekan **Detail** untuk melihat langkah perbaikannya.
+
+Pita ini muncul kalau `app.info` melaporkan build yang lebih lama dari
+`Api.BUILD_MIN` di `web/js/api.js`. Sementara itu build di `gas/Config.gs`
+(`APP.BUILD`) harus diubah **bersamaan** dengan `BUILD_MIN`, kalau tidak
+semua pengguna melihat pita ini tanpa alasan.
+
+Kalau pita muncul padahal backend sudah di-update, muat ulang paksa
+(tarik-ke-bawah atau tutup lalu buka browser) — service worker masih
+menyimpan JavaScript lama.
+
 ### Tombol yang "tidak terjadi apa-apa"
 
 `Ui.tombolMuat(el, fn)` menjalankan `fn()` **langsung** dan mengembalikan

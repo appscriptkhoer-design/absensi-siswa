@@ -244,22 +244,60 @@ html5-qrcode #scan-anchor { border-radius: 6px !important; }
 .btn--flat { box-shadow: none; border-width: 0; background: transparent; padding: 4px; min-height: 36px; }
 .btn--flat:hover { background: var(--yellow); border-width: var(--line); }
 
-/* Pita peringatan versi backend. Dicetak? Tidak — hanya untuk layar. */
+/* Pita peringatan versi backend ("server belum diperbarui"). Dicetak? Tidak,
+   hanya untuk layar.
+
+   Sengaja TIDAK position: fixed. Versi lama menumpuk di bawah dengan z-index
+   di atas navbar, jadi menutupi navigation bawah. Sekarang pita ini anak
+   pertama <body> dan memakai position: sticky: menempati ruang (mendorong
+   konten, tidak menutupi apa pun) tapi tetap terlihat saat digulir. */
 .peringatan-build {
-  position: fixed;
-  inset: auto 0 0 0;
-  z-index: 60;
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  gap: 6px;
+  padding: calc(8px + env(safe-area-inset-top)) 14px 10px;
   background: var(--yellow);
   color: #1b1400;
-  border-top: 3px solid #1b1400;
+  border-bottom: var(--line) solid var(--ink);
   font-size: 13px;
   line-height: 1.4;
 }
 .peringatan-build strong { font-size: 14px; }
+
+.peringatan-build__baris {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.peringatan-build__tombol {
+  margin-left: auto;
+  padding: 4px 10px;
+  min-height: 32px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1b1400;
+  background: var(--surface);
+  border: 2px solid #1b1400;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.peringatan-build__rinci {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+.peringatan-build__rinci p { margin: 0 0 6px; }
+.peringatan-build__rinci p:last-child { margin-bottom: 0; }
 
 @media print { .peringatan-build { display: none !important; } }
 
