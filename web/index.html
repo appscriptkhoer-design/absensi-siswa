@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="id" data-tema="terang">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<title>Absensi Siswa — PAUD &amp; SD</title>
+<meta name="description" content="Aplikasi absensi siswa PAUD/SD: scan QR &amp; barcode, GPS, foto, kartu siswa, rekap, dan notifikasi orang tua.">
+<meta name="theme-color" content="#FFD23F" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F0F0F" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Absensi">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<main id="shell" class="app">
+  <div class="muat" role="status" aria-live="polite">
+    <div class="muat__spin" aria-hidden="true"></div>
+    <p>Memuat aplikasi…</p>
+  </div>
+</main>
+<div id="toast-akar"></div>
+<noscript>
+  <div style="padding:20px;font-weight:800">Aplikasi ini memerlukan JavaScript aktif.</div>
+</noscript>
+
+<script src="js/vendor/jsbarcode.min.js"></script>
+<script src="js/vendor/qrcode-generator.js"></script>
+<script src="js/vendor/html5-qrcode.min.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+<script src="js/page-setelan.js"></script>
+<script src="js/page-masuk.js"></script>
+<script src="js/page-beranda.js"></script>
+<script src="js/page-scan.js"></script>
+<script src="js/page-siswa.js"></script>
+<script src="js/page-kartu.js"></script>
+<script src="js/page-rekap.js"></script>
+<script src="js/page-admin.js"></script>
+<script src="js/page-akun.js"></script>
+<script>
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { App.mulai(); });
+  } else {
+    App.mulai();
+  }
+</script>
+</body>
+</html>

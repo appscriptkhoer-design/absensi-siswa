@@ -1,0 +1,206 @@
+const Hal = {};
+
+Hal.daftar = function (nama, def) { Hal[nama] = def; };
+
+const APP_WEB = { NAMA: 'Absensi Siswa', VERSI: '1.0.0' };
+
+function kartuGagal(err) {
+  return h('div', { class: 'card card--warn' }, [
+    h('h2', { text: 'Gagal memuat halaman' }),
+    h('p', { text: Api.kelasGalat(err) }),
+    h('button', {
+      class: 'btn btn--primary', type: 'button', text: '↻ Coba lagi',
+      onclick: function () { App.render(); }
+    })
+  ]);
+}
+
+const App = {
+  RUTE: {
+    MASUK: '#/masuk',
+    BERANDA: '#/',
+    SCAN: '#/scan',
+    SISWA: '#/siswa',
+    KARTU: '#/kartu',
+    REKAP: '#/rekap',
+    ADMIN: '#/admin',
+    AKUN: '#/akun',
+    SETELAN: '#/setelan'
+  },
+
+  PERLU_AUTH: ['#/', '#/scan', '#/siswa', '#/kartu', '#/rekap', '#/admin', '#/akun'],
+
+  NAV: [
+    { rute: '#/', label: 'Beranda', ikon: '🏠' },
+    { rute: '#/scan', label: 'Scan', ikon: '📷' },
+    { rute: '#/siswa', label: 'Siswa', ikon: '🎒' },
+    { rute: '#/rekap', label: 'Rekap', ikon: '📊' },
+    { rute: '#/akun', label: 'Akun', ikon: '👤' }
+  ],
+
+  parse: function () {
+    const hash = location.hash || '#/';
+    const pisah = hash.indexOf('?');
+    const rute = pisah >= 0 ? hash.slice(0, pisah) : hash;
+    const query = {};
+    if (pisah >= 0) {
+      hash.slice(pisah + 1).split('&').forEach(function (bagian) {
+        if (!bagian) return;
+        const p = bagian.split('=');
+        query[decodeURIComponent(p[0])] = decodeURIComponent((p[1] || '').replace(/\+/g, ' '));
+      });
+    }
+    const bersih = rute.replace(/\/+$/, '') || '#/';
+    return { rute: bersih, query: query };
+  },
+
+  topbar: function () {
+    const u = Api.user();
+    const s = Api.sekolah();
+    const tombolTema = h('button', {
+      class: 'btn btn--sm btn--icon',
+      type: 'button',
+      'aria-label': 'Ganti tema',
+      text: document.documentElement.dataset.tema === 'gelap' ? '☀' : '☾',
+      onclick: function () {
+        Ui.gantiTema();
+        App.gambarUlang();
+      }
+    });
+    return h('header', { class: 'topbar' }, [
+      h('div', {}, [
+        h('div', { class: 'topbar__brand', text: 'ABSENSI SISWA' }),
+        h('div', { class: 'topbar__sub', text: (s && s.nama ? s.nama : '') + (u ? ' · ' + u.nama : '') })
+      ]),
+      h('div', { class: 'topbar__spacer' }),
+      tombolTema
+    ]);
+  },
+
+  nav: function (ruteAktif) {
+    const bar = h('nav', { class: 'navbawah', 'aria-label': 'Menu utama' });
+    this.NAV.forEach(function (item) {
+      const el = h('a', {
+        class: 'navbawah__item',
+        href: item.rute
+      }, [
+        h('span', { class: 'navbawah__ikon', text: item.ikon }),
+        h('span', { text: item.label })
+      ]);
+      if (item.rute === ruteAktif) el.setAttribute('aria-current', 'page');
+      bar.appendChild(el);
+    });
+    return bar;
+  },
+
+  pergi: function (rute) {
+    if (location.hash === rute) { App.render(); return; }
+    location.hash = rute;
+  },
+
+  gambarUlang: function () {
+    const shell = $('#shell');
+    if (!shell) return;
+    const lama = document.querySelector('.navbawah');
+    if (lama) lama.remove();
+    const top = document.querySelector('.topbar');
+    if (top) top.replaceWith(this.topbar());
+    shell.appendChild(this.nav(this.parse().rute));
+  },
+
+  render: function () {
+    const shell = $('#shell');
+    if (!shell) return;
+    shell.innerHTML = '';
+    const p = this.parse();
+    const perluAuth = this.PERLU_AUTH.indexOf(p.rute) >= 0;
+
+    if (!Api.adaUrl()) {
+      shell.appendChild(this.topbar());
+      const wadah = h('section', { class: 'halaman aktif', id: 'hal-setelan' });
+      shell.appendChild(wadah);
+      Hal[this.RUTE.SETELAN].render(wadah);
+      return;
+    }
+
+    if (perluAuth && !Api.adaToken()) {
+      this.pergi(this.RUTE.MASUK);
+      return;
+    }
+    if (!perluAuth && Api.adaToken() && (p.rute === this.RUTE.MASUK)) {
+      this.pergi(this.RUTE.BERANDA);
+      return;
+    }
+
+    const def = Hal[p.rute] || Hal['#/'];
+
+    if (perluAuth && def.perluRole) {
+      const u = Api.user();
+      const boleh = !u || def.perluRole.indexOf(u.role) >= 0;
+      if (!boleh) {
+        shell.appendChild(this.topbar());
+        shell.appendChild(h('section', { class: 'halaman aktif', id: 'hal-' + def.nama }, [
+          h('div', { class: 'card card--warn' }, [
+            h('h2', { text: 'Akses Ditolak' }),
+            h('p', { text: 'Halaman ini hanya untuk peran: ' + def.perluRole.join(', ') + '.' }),
+            h('button', {
+              class: 'btn btn--primary', type: 'button', text: '← Kembali',
+              onclick: function () { App.pergi(App.RUTE.BERANDA); }
+            })
+          ])
+        ]));
+        this.nav(p.rute);
+        return;
+      }
+    }
+
+    shell.appendChild(this.topbar());
+
+    const wadah = h('section', { class: 'halaman aktif', id: 'hal-' + def.nama });
+    const loader = Ui.muat();
+    wadah.appendChild(loader);
+    shell.appendChild(wadah);
+    this.nav(p.rute);
+
+    const buangLoader = function () { if (loader.parentNode) loader.remove(); };
+    let jalankan;
+    try {
+      jalankan = def.render(wadah, p.query);
+    } catch (err) {
+      buangLoader();
+      wadah.appendChild(kartuGagal(err));
+      return;
+    }
+    if (jalankan && typeof jalankan.then === 'function') {
+      jalankan.then(buangLoader).catch(function (err) {
+        buangLoader();
+        wadah.appendChild(kartuGagal(err));
+      });
+    } else {
+      buangLoader();
+    }
+  },
+
+  mulai: function () {
+    Ui.tema();
+    if (window.matchMedia) {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const dengar = function () {
+        if (Simpan.ambil(K.TEMA, 'auto') === 'auto') {
+          document.documentElement.dataset.tema = mq.matches ? 'gelap' : 'terang';
+          App.gambarUlang();
+        }
+      };
+      if (mq.addEventListener) mq.addEventListener('change', dengar);
+    }
+    window.addEventListener('hashchange', function () {
+      window.scrollTo(0, 0);
+      App.render();
+    });
+    if (!location.hash) location.hash = App.RUTE.BERANDA;
+    App.render();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(function () { });
+    }
+  }
+};

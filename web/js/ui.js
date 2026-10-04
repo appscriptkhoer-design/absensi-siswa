@@ -1,0 +1,215 @@
+function $(sel, akar) { return (akar || document).querySelector(sel); }
+function $$(sel, akar) { return Array.prototype.slice.call((akar || document).querySelectorAll(sel)); }
+
+const TAG_SVG = { svg: 1, g: 1, path: 1, rect: 1, circle: 1, line: 1, polyline: 1, polygon: 1, text: 1, defs: 1, use: 1 };
+
+function h(tag, attrs, children) {
+  const el = TAG_SVG[tag]
+    ? document.createElementNS('http://www.w3.org/2000/svg', tag)
+    : document.createElement(tag);
+  const a = attrs || {};
+  Object.keys(a).forEach(function (k) {
+    const v = a[k];
+    if (v === null || v === undefined || v === false) return;
+    if (k === 'class' && !TAG_SVG[tag]) el.className = v;
+    else if (k === 'class') el.setAttribute('class', v);
+    else if (k === 'text') el.textContent = v;
+    else if (k === 'html') el.innerHTML = v;
+    else if (k.indexOf('on') === 0 && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else if (k === 'dataset') Object.keys(v).forEach(function (d) { el.dataset[d] = v[d]; });
+    else if (k === 'value') el.value = v;
+    else if (v === true) el.setAttribute(k, '');
+    else el.setAttribute(k, v);
+  });
+  if (children !== undefined && children !== null) {
+    const daftar = Array.isArray(children) ? children : [children];
+    daftar.forEach(function (c) {
+      if (c === null || c === undefined || c === false) return;
+      el.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
+    });
+  }
+  return el;
+}
+
+function bersihkan(html) {
+  return String(html === null || html === undefined ? '' : html)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+function fmtTanggal (tanggalStr) {
+  const p = String(tanggalStr || '').split('-');
+  if (p.length !== 3) return tanggalStr || '-';
+  return p[2] + ' ' + BULAN[parseInt(p[1], 10) - 1] + ' ' + p[0];
+}
+
+function fmtJam (iso) {
+  return String(iso || '').slice(11, 16) || '-';
+}
+
+function fmtTanggalLengkap (tanggalStr) {
+  const d = new Date(String(tanggalStr) + 'T00:00:00');
+  if (isNaN(d.getTime())) return tanggalStr;
+  return HARI[d.getDay()] + ', ' + d.getDate() + ' ' + BULAN[d.getMonth()] + ' ' + d.getFullYear();
+};
+
+const Ui = {
+  toast: function (pesan, jenis) {
+    const lama = document.querySelectorAll('.toast');
+    lama.forEach(function (t) { t.remove(); });
+    const el = h('div', { class: 'toast toast--' + (jenis || 'info'), role: 'status' }, [
+      h('span', { text: pesan })
+    ]);
+    document.body.appendChild(el);
+    setTimeout(function () { el.remove(); }, jenis === 'err' ? 6000 : 3000);
+  },
+
+  muat: function (pesan) {
+    const el = h('div', { class: 'muat' }, [
+      h('div', { class: 'muat__spin' }),
+      h('div', { class: 'teks-kecil', text: pesan || 'Memuat…' })
+    ]);
+    return el;
+  },
+
+  modal: function (opsi) {
+    const o = opsi || {};
+    const konten = h('div', { class: 'modal' });
+    const tutup = function () { backdrop.remove(); document.body.style.overflow = ''; };
+    const aksi = h('div', { class: 'btn-row', style: 'margin-top:16px' });
+
+    (o.aksi || []).forEach(function (a) {
+      const b = h('button', {
+        class: 'btn ' + (a.class || ''),
+        type: 'button',
+        onclick: function () {
+          if (!a.jalankan) { tutup(); return; }
+          a.jalankan(tutup, konten);
+        }
+      }, a.label);
+      aksi.appendChild(b);
+    });
+    if (!o.aksi) {
+      aksi.appendChild(h('button', { class: 'btn btn--block', type: 'button', onclick: tutup, text: 'Tutup' }));
+    }
+
+    konten.appendChild(h('h2', { class: 'card__title' }, [
+      h('span', { text: o.judul || '' }),
+      h('button', { class: 'btn btn--sm btn--icon', type: 'button', 'aria-label': 'Tutup', onclick: tutup, text: '✕' })
+    ]));
+    const isi = o.isi;
+    if (typeof isi === 'string') konten.appendChild(h('div', { html: isi }));
+    else if (isi) konten.appendChild(isi);
+    if (o.catatan) konten.appendChild(h('div', { class: 'hint', style: 'margin-top:10px', text: o.catatan }));
+    konten.appendChild(aksi);
+
+    const backdrop = h('div', {
+      class: 'modal-backdrop',
+      onclick: function (e) { if (e.target === backdrop) tutup(); }
+    }, konten);
+
+    document.body.appendChild(backdrop);
+    document.body.style.overflow = 'hidden';
+    return { tutup: tutup, elemen: konten };
+  },
+
+  konfirmasi: function (pesan, judul, labelYa) {
+    return new Promise(function (res) {
+      Ui.modal({
+        judul: judul || 'Konfirmasi',
+        isi: h('p', { text: pesan }),
+        aksi: [
+          { label: 'Batal', class: '', jalankan: function (tutup) { tutup(); res(false); } },
+          { label: labelYa || 'Ya, Lanjutkan', class: 'btn--red', jalankan: function (tutup) { tutup(); res(true); } }
+        ]
+      });
+    });
+  },
+
+  galat: function (err) {
+    const pesan = Api.kelasGalat(err);
+    if (err && err.kode === 'AUTH') {
+      Ui.modal({
+        judul: 'Sesi Berakhir',
+        isi: h('p', { text: pesan }),
+        aksi: [{ label: 'Masuk Lagi', class: 'btn--primary', jalankan: function () { location.hash = '#/masuk'; } }]
+      });
+      return;
+    }
+    Ui.toast(pesan, 'err');
+  },
+
+  avatar: function (data, ukuran) {
+    const cls = 'avatar' + (ukuran === 'sm' ? ' avatar--sm' : ukuran === 'lg' ? ' avatar--lg' : '');
+    const box = h('div', { class: cls, text: data && data.pravatar ? data.pravatar : '?' });
+    const src = data && data.foto ? data.foto : (data && data.foto_proxy ? Api.fotoUrl(data.foto_proxy) : '');
+    if (src) {
+      const img = h('img', { src: src, alt: '', loading: 'lazy' });
+      img.addEventListener('error', function () { box.textContent = (data && data.pravatar) || '?'; });
+      box.textContent = '';
+      box.appendChild(img);
+    }
+    return box;
+  },
+
+  badge: function (status) {
+    const peta = {
+      hadir: 'Hadir', telat: 'Telat', izin: 'Izin', sakit: 'Sakit',
+      alpha: 'Alpha', belum: 'Belum', masuk: 'Masuk', pulang: 'Pulang',
+      pending: 'Menunggu', active: 'Aktif', rejected: 'Ditolak',
+      sent: 'Terkirim', gagal: 'Gagal', lewati: 'Dilewati',
+      superadmin: 'Super Admin', admin: 'Admin', guru: 'Guru'
+    };
+    return h('span', { class: 'badge badge--' + status, text: peta[status] || status });
+  },
+
+  hariIni: function () {
+    const d = new Date();
+    const b = d.getMonth() + 1;
+    const t = d.getDate();
+    return d.getFullYear() + '-' + (b < 10 ? '0' + b : b) + '-' + (t < 10 ? '0' + t : t);
+  },
+
+  kirimEnter: function (el, fn) {
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); fn(); }
+    });
+  },
+
+  tombolMuat: function (el, fn) {
+    const labelAsli = el.textContent;
+    return function () {
+      el.disabled = true;
+      el.textContent = 'Memproses…';
+      return Promise.resolve(fn()).catch(function (err) {
+        Ui.galat(err);
+      }).then(function (r) {
+        el.disabled = false;
+        el.textContent = labelAsli;
+        return r;
+      });
+    };
+  },
+
+  unduh: function (hasil, namaCadangan) {
+    Api.unduhCsv(hasil.filename || namaCadangan || 'unduh.csv', hasil.csv || '');
+    Ui.toast('Berkas CSV diunduh.', 'ok');
+  },
+
+  tema: function () {
+    const t = Simpan.ambil(K.TEMA, 'auto');
+    document.documentElement.dataset.tema = t === 'auto'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'gelap' : 'terang')
+      : t;
+  },
+
+  gantiTema: function () {
+    const sekarang = document.documentElement.dataset.tema;
+    const baru = sekarang === 'gelap' ? 'terang' : 'gelap';
+    document.documentElement.dataset.tema = baru;
+    Simpan.simpan(K.TEMA, baru);
+  }
+};

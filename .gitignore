@@ -1,0 +1,13 @@
+# Backend Apps Script — tidak ikut ter-push ke repo publik.
+# Push ke Apps Script memakai `clasp push`, bukan git.
+gas/
+test/
+
+# Config lokal clasp (berisi Script ID)
+.clasp.json
+
+# Log & berkas OS
+*.log
+.DS_Store
+Thumbs.db
+node_modules/
