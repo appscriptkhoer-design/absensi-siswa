@@ -270,6 +270,7 @@ token Meta Cloud API dan template pesan disetujui. Isi `wa_aktif`, `wa_phone_id`
 | Semua siswa `belum` di rekap | Absensi dicatat pada tanggal berbeda; pastikan zona waktu proyek = Asia/Jakarta |
 | Halaman kosong setelah update | `clasp push` selesai tetapi deployment belum "New version", atau cache service worker — buka **Akun → Hapus Cache** |
 | Kamera tidak bisa dibuka | Aplikasi harus berada di origin HTTPS; `file://` dan HTTP tidak diizinkan browser |
+| `curl` ke `/exec` membalas HTML "Halaman Tidak Ditemukan" | `/exec` membalas 302 ke URL `script.googleusercontent.com/macros/echo` yang hanya berlaku sekali **dan terikat cookie**. Jangan `curl -L`; POST sekali untuk menangkap redirect, lalu GET dengan cookie jar yang sama. `test/api-live.sh` sudah mengurus keduanya. Browser tidak terpengaruh karena cookie dikirim otomatis |
 | GPS "jauh dari lokasi sekolah" | Koordinat sekolah terbalik (latitude di kolom longitude) atau radius terlalu kecil |
 
 ### Uji otomatis lokal
