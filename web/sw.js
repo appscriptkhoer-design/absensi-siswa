@@ -1,5 +1,11 @@
-/* Service worker — cache statis saja, API GAS tidak pernah di-cache. */
-const VERSI = 'absensi-v1';
+/* Service worker — cache statis saja, API GAS tidak pernah di-cache.
+
+   Navigasi memakai cache-first: aplikasi terbuka seketika dari salinan yang
+   tersimpan, lalu versi baru diperbarui diam-diam di belakang. Sebelumnya
+   network-first, jadi setiap membuka aplikasi harus menunggu GitHub Pages
+   menjawab dulu — itu sendiri bisa detik-detik, di atas dua detik yang sudah
+   dibebankan oleh server. */
+const VERSI = 'absensi-v2';
 const INTI = [
   './',
   './index.html',
@@ -41,16 +47,38 @@ self.addEventListener('activate', function (e) {
       return Promise.all(kunci.map(function (k) {
         return k === VERSI ? null : caches.delete(k);
       }));
-    }).then(function () { return self.clients.claim(); })
+    }).then(function () {
+      // Beritahu semua tab yang sedang terbuka bahwa ada service worker
+      // baru, supaya bisa sarankans reload sekarang juga.
+      return self.clients.claim().then(function () {
+        return self.clients.matchAll({ includeUncontrolled: true }).then(function (daftar) {
+          daftar.forEach(function (c) { c.postMessage({ tipe: 'sw-baru' }); });
+        });
+      });
+    })
   );
 });
+
+function kabariVersiBaru(baru, lama) {
+  if (!baru || !lama) return;
+  try {
+    if (baru.headers.get('content-length') !== lama.headers.get('content-length')) {
+      self.clients.matchAll({ includeUncontrolled: true }).then(function (daftar) {
+        daftar.forEach(function (c) { c.postMessage({ tipe: 'sw-berubah' }); });
+      });
+    }
+  } catch (e) { }
+}
 
 function dariCacheAwal(req) {
   return caches.match(req, { ignoreSearch: true }).then(function (ada) {
     if (ada) {
       const salinan = ada.clone();
       fetch(req).then(function (baru) {
-        if (baru && baru.ok) caches.open(VERSI).then(function (c) { c.put(req, baru); });
+        if (baru && baru.ok) {
+          if (/\.(js|css)$/.test(url.pathname)) kabariVersiBaru(baru, ada);
+          caches.open(VERSI).then(function (c) { c.put(req, baru); });
+        }
       }).catch(function () { });
       return salinan;
     }
@@ -74,13 +102,26 @@ self.addEventListener('fetch', function (e) {
 
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch('./index.html')
-        .then(function (baru) {
-          const s = baru.clone();
-          caches.open(VERSI).then(function (c) { c.put('./index.html', s); });
-          return baru;
-        })
-        .catch(function () { return caches.match('./index.html'); })
+      caches.match('./index.html').then(function (ada) {
+        const perbarui = function () {
+          return fetch('./index.html').then(function (baru) {
+            if (baru && baru.ok) {
+              const s = baru.clone();
+              caches.open(VERSI).then(function (c) { c.put('./index.html', s); });
+            }
+            return baru;
+          }).catch(function () { return null; });
+        };
+        if (ada) {
+          // Salinan lama langsung lanserve, pembaruan jalan di belakang tanpa
+          // menunggu.
+          perbarui();
+          return ada;
+        }
+        return perbarui().then(function (baru) {
+          return baru || Response.error();
+        });
+      })
     );
     return;
   }

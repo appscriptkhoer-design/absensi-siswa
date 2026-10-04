@@ -205,13 +205,15 @@ Hal.daftar('#/kartu', {
     // Foto dimuat asinkron (Api.pasangFoto baru memasang src setelah respons
     // backend dicek), jadi <img> bisa belum punya src sama sekali saat
     // cetak dipicu. Kalau itu dianggap "gagal", PDF keluar dengan foto kosong.
+    // Batasnya 20 detik karena foto dialirkan lewat antrean (maksimal 6
+    // sekaligus), jadi untuk banyak siswa antreannya memang memakan waktu.
     // Karena itu status tiap gambar dicek berulang: null = masih menunggu
     // src, true = Loaded, false = benar-benar gagal.
     function tungguGambar() {
       const gambar = $$('img', areaCetak);
       return Promise.all(gambar.map(function (im) {
         return new Promise(function (res) {
-          const batas = Date.now() + 8000;
+          const batas = Date.now() + 20000;
           let hasilTerakhir = false;
           const periksa = function () {
             const src = im.getAttribute('src');
@@ -259,7 +261,7 @@ Hal.daftar('#/kartu', {
       daftarPilih.innerHTML = '';
       daftarPilih.appendChild(Ui.muat('Memuat siswa…'));
       return Promise.all([
-        Api.panggil('siswa.kelas', {}),
+        Api.panggil('siswa.kelas', {}, { ttl: Api.TTL }),
         Api.panggil('siswa.kartu', { sekolah_id: sekolahId, kelas: kelas })
       ]).then(function (hasil) {
         const kelasList = hasil[0].data || [];

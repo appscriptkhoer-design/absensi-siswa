@@ -176,7 +176,7 @@ Hal.daftar('#/siswa', {
       const semua = h('button', { class: 'chip', type: 'button', 'aria-pressed': kelas ? 'false' : 'true', text: 'Semua' });
       semua.addEventListener('click', function () { kelas = ''; chipKelas(); muat(); });
       chipRow.appendChild(semua);
-      Api.panggil('siswa.kelas', {}).then(function (res) {
+      Api.panggil('siswa.kelas', {}, { ttl: Api.TTL }).then(function (res) {
         (res.data || []).forEach(function (k) {
           const c = h('button', {
             class: 'chip', type: 'button', dataset: { k: k.kelas },
@@ -382,7 +382,7 @@ Hal.daftar('#/siswa', {
     });
 
     tombolEkspor.addEventListener('click', function () {
-      Api.panggil('siswa.daftar', { sekolah_id: sekolahId, hanya_aktif: false, kelas: kelas }).then(function (res) {
+      Api.panggil('siswa.daftar', { sekolah_id: sekolahId, hanya_aktif: false, kelas: kelas }, { ttl: Api.TTL }).then(function (res) {
         const baris = ['nis;nisn;nama;kelas;rombel;gender;tgl_lahir;nama_ortu;no_hp_ortu;kanal_notif;barcode'];
         (res.data || []).forEach(function (s) {
           baris.push([s.nis, s.nisn, s.nama, s.kelas, s.rombel, s.gender, s.tgl_lahir, s.nama_ortu, s.no_hp_ortu, s.kanal_notif, s.barcode]
@@ -392,22 +392,57 @@ Hal.daftar('#/siswa', {
       }).catch(Ui.galat);
     });
 
+    // Daftar siswa diambil per bagian, bukan sekaligus. Satu panggilan API
+    // sudah memakan waktu sekitar 2,4 detik di sisi server, jadi mengirim dan
+    // menggambar ratusan baris sekaligus hanya menambah antrean tanpa
+    // mempercepat apa pun.
+    const BATAS = 30;
+    let dimuat = 0;
+    let adaLagi = false;
+
     function muat() {
+      dimuat = 0;
+      adaLagi = false;
       daftar.innerHTML = '';
-      daftar.appendChild(Ui.muat('Memuat data siswa…'));
+      // Kerangka bayangan tampil seketika supaya halaman terasa hidup
+      // selagi server bekerja.
+      for (let i = 0; i < 6; i++) daftar.appendChild(Ui.rangka(1));
+      return ambil(false);
+    }
+
+    function lebihLagi() {
+      if (!adaLagi) return;
+      const t = daftar.querySelector('.btn--more');
+      if (t) t.remove();
+      return ambil(true);
+    }
+
+    function ambil(sambung) {
       return Api.panggil('siswa.daftar', {
-        sekolah_id: sekolahId, cari: cari, kelas: kelas, hanya_aktif: hanyaAktif
-      }).then(function (res) {
+        sekolah_id: sekolahId, cari: cari, kelas: kelas, hanya_aktif: hanyaAktif,
+        batas: BATAS, mulai: dimuat
+      }, { ttl: Api.TTL }).then(function (res) {
         totalEl.textContent = res.total + ' siswa';
-        daftar.innerHTML = '';
+        if (!sambung) daftar.innerHTML = '';
         if (!res.data.length) {
-          daftar.appendChild(h('div', { class: 'kosong', text: 'Belum ada siswa. Tekan "Tambah Siswa" untuk memulai.' }));
+          if (dimuat === 0) {
+            daftar.appendChild(h('div', { class: 'kosong', text: 'Belum ada siswa. Tekan "Tambah Siswa" untuk memulai.' }));
+          }
+          adaLagi = false;
           return;
         }
         res.data.forEach(function (s) { daftar.appendChild(barisSiswa(s)); });
+        dimuat += res.data.length;
+        adaLagi = !!res.ada_lagi;
+        if (adaLagi) {
+          daftar.appendChild(h('button', {
+            class: 'btn btn--block btn--more', type: 'button', text: 'Muat ' + Math.min(BATAS, (res.total || 0) - dimuat) + ' siswa lagi',
+            onclick: lebihLagi
+          }));
+        }
       }).catch(function (err) {
-        daftar.innerHTML = '';
-        daftar.appendChild(h('div', { class: 'card card--warn', text: Api.kelasGalat(err) }));
+        if (!sambung) daftar.innerHTML = '';
+        daftar.appendChild(Ui.pesanGalat(Api.kelasGalat(err), lebihLagi));
       });
     }
 

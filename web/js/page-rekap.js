@@ -47,15 +47,22 @@ Hal.daftar('#/rekap', {
     wadah.appendChild(h('div', { class: 'cetak-aksi btn-row', style: 'margin-bottom:12px' }, [btnCsvHarian, btnCsvAbsen]));
     wadah.appendChild(body);
 
-    function setMode(m) {
-      mode = m;
+    // Tampilan mode (tombol aktif, baris mana yang disembunyikan). Dipisah
+    // dari pemanggilan data supaya render awal bisa menggambar tampilan dulu
+    // lalu meminta data tanpa memuat dua kali.
+    function gambarMode(m) {
       tabHarian.setAttribute('aria-pressed', m === 'harian' ? 'true' : 'false');
       tabBulanan.setAttribute('aria-pressed', m === 'bulanan' ? 'true' : 'false');
       inTanggal.parentNode.style.display = m === 'harian' ? '' : 'none';
       $('#row-bulan').style.display = m === 'bulanan' ? '' : 'none';
       btnCsvAbsen.style.display = m === 'harian' ? '' : 'none';
       btnCsvHarian.textContent = m === 'harian' ? '⭳ CSV Rekap' : '⭳ CSV Bulanan';
-      muat();
+    }
+
+    function setMode(m) {
+      mode = m;
+      gambarMode(m);
+      return muat();
     }
     tabHarian.addEventListener('click', function () { setMode('harian'); });
     tabBulanan.addEventListener('click', function () { setMode('bulanan'); });
@@ -97,7 +104,7 @@ Hal.daftar('#/rekap', {
     function muatHarian() {
       body.innerHTML = '';
       body.appendChild(Ui.muat('Menghitung…'));
-      return Api.panggil('rekap.harian', { sekolah_id: sekolahId, tanggal: tanggal, kelas: kelas }).then(function (res) {
+      return Api.panggil('rekap.harian', { sekolah_id: sekolahId, tanggal: tanggal, kelas: kelas }, { ttl: 30000 }).then(function (res) {
         body.innerHTML = '';
         const kartu = h('div', { class: 'card' }, [
           h('h2', { text: fmtTanggalLengkap(res.tanggal) })
@@ -143,7 +150,7 @@ Hal.daftar('#/rekap', {
     function muatBulanan() {
       body.innerHTML = '';
       body.appendChild(Ui.muat('Menghitung…'));
-      return Api.panggil('rekap.bulanan', { sekolah_id: sekolahId, bulan: bulan, tahun: tahun, kelas: kelas }).then(function (res) {
+      return Api.panggil('rekap.bulanan', { sekolah_id: sekolahId, bulan: bulan, tahun: tahun, kelas: kelas }, { ttl: 30000 }).then(function (res) {
         body.innerHTML = '';
         const kartu = h('div', { class: 'card' }, [h('h2', { text: BULAN[res.bulan - 1] + ' ' + res.tahun })]);
         const grid = h('div', { class: 'bulan-grid' });
@@ -230,13 +237,19 @@ Hal.daftar('#/rekap', {
       return mode === 'harian' ? muatHarian() : muatBulanan();
     }
 
-    return Api.panggil('siswa.kelas', {}).then(function (res) {
+    // Daftar kelas dan data recap diambil bersamaan. Kalau dipanggil
+    // berurutan, halaman ini menunggu dua kali 2,4 detik sebelum isi pertama
+    // tampil; sekarang cukup satu kali.
+    gambarMode(mode);
+    return Promise.all([
+      Api.panggil('siswa.kelas', {}, { ttl: Api.TTL }),
+      mode === 'harian' ? muatHarian() : muatBulanan()
+    ]).then(function (hasil) {
+      const res = hasil[0];
       selKelas.appendChild(h('option', { value: '', text: 'Semua kelas' }));
       (res.data || []).forEach(function (k) {
         selKelas.appendChild(h('option', { value: k.kelas, text: k.kelas + ' (' + k.jumlah + ')' }));
       });
-    }).then(function () {
-      setMode(mode);
     });
   }
 });

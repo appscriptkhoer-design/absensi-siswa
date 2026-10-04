@@ -239,6 +239,29 @@ const App = {
     if (Api.adaUrl()) App.peringatanBuild();
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(function () { });
+      // Service worker memberi tahu kalau ada versi yang lebih baru. Tanpa
+      // ini, pengguna bisa berlama-lama memakai JavaScript lama tanpa sadar.
+      navigator.serviceWorker.addEventListener('message', function (ev) {
+        if (!ev.data || (ev.data.tipe !== 'sw-berubah' && ev.data.tipe !== 'sw-baru')) return;
+        App.tawarMuatUlang(ev.data.tipe === 'sw-baru');
+      });
     }
+  },
+
+  tawarMuatUlang: function (swBaru) {
+    if (Simpan.ambil(K.SW_DISARANKAN, false)) return;
+    Simpan.simpan(K.SW_DISARANKAN, true);
+    const tombol = h('button', {
+      class: 'btn btn--sm', type: 'button', text: 'Muat ulang',
+      onclick: function () {
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.getRegistration().then(function (r) {
+            if (r) r.unregister();
+          });
+        }
+        location.reload();
+      }
+    });
+    Ui.toast(swBaru ? 'Aplikasi punya versi baru.' : 'Ada file baru terunduh.', 'info', tombol);
   }
 };

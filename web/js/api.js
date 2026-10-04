@@ -22,7 +22,8 @@ const K = {
   EXPIRES: 'abs_expires',
   USER: 'abs_user',
   SEKOLAH: 'abs_sekolah',
-  TEMA: 'abs_tema'
+  TEMA: 'abs_tema',
+  SW_DISARANKAN: 'abs_sw_baru'
 };
 
 const Api = {
@@ -83,6 +84,7 @@ const Api = {
     Simpan.hapus(K.USER);
     Simpan.hapus(K.SEKOLAH);
     Api._blob = {};
+    Api._cache = {};
     Api._build = null;
     Api._cekBuild = null;
   },
@@ -109,11 +111,12 @@ const Api = {
 
   cekBuild: function () {
     if (Api._cekBuild) return Api._cekBuild;
-    Api._cekBuild = Api.panggil('app.info', {}, { timeout: 8000 }).then(function (r) {
+    Api._cekBuild = Api.panggil('app.info', {}, { timeout: 15000, ttl: 300000 }).then(function (r) {
       const info = r && r.data ? r.data : r;
       Api._build = info && typeof info.build === 'number' ? info.build : 0;
+      Api._diag.build = Api._build;
       return Api._build;
-    }).catch(function () { Api._build = 0; return 0; });
+    }).catch(function () { Api._build = 0; Api._diag.build = 0; return 0; });
     return Api._cekBuild;
   },
 
@@ -121,8 +124,71 @@ const Api = {
     return Api._build !== null && Api._build < Api.BUILD_MIN;
   },
 
-  _blob: {},
+  // ---------------------------------------------------------------
+  // Antrean foto.
+  //
+  // Setiap foto adalah satu permintaan penuh ke Apps Script, dan satu
+  // permintaan selalu dua round-trip (POST lalu GET ke URL redirect). Kalau 40
+  // foto dimuat bersamaan, 80 permintaan bertabrakan dan semuanya melambat
+  // sampai sebagian lewat batas waktu. Antrean ini membatasi jumlah yang
+  // berjalan bersamaan; sisanya menunggu giliran.
+  // ---------------------------------------------------------------
+  ANTREAN_FOTO: 6,
+  _antrean: [],
+  _antreanJalan: 0,
 
+  _antrkJalankan: function () {
+    while (Api._antreanJalan < Api.ANTREAN_FOTO && Api._antrean.length) {
+      const item = Api._antrean.shift();
+      Api._antreanJalan++;
+      item.jalan().then(item.selesai, item.gagal);
+    }
+  },
+
+  antreFoto: function (kerja) {
+    return new Promise(function (res, rej) {
+      Api._antrean.push({
+        jalan: kerja,
+        selesai: function (nilai) { Api._antreanJalan--; Api._antrkJalankan(); res(nilai); },
+        gagal: function (err) { Api._antreanJalan--; Api._antrkJalankan(); rej(err); }
+      });
+      Api._antrkJalankan();
+    });
+  },
+
+  // ---------------------------------------------------------------
+  // Cache respons di memori.
+  //
+  // Satu panggilan API tidak pernah bisa lebih cepat dari ~2,4 detik karena
+  // biaya platform Apps Script dan redirect wajibnya. Yang bisa dihemat adalah
+  // jumlah panggilan: berpindah-pindah halaman tidak perlu mengambil data
+  // yang sama berulang kali.
+  //
+  // Hanya aksi baca yang boleh di-cache. Aksi lain (tulis, absen, hapus)
+  // selalu mengosongkan cache, jadi data yang tampil tidak pernah basi.
+  // ---------------------------------------------------------------
+  TTL: 45000,
+  TIMEOUT: 45000,
+
+  BACA_AKSI: [
+    'app.info', 'sekolah.list', 'sekolah.ambil',
+    'siswa.daftar', 'siswa.kelas', 'siswa.kartu', 'siswa.cek',
+    'rekap.dashboard', 'rekap.harian', 'rekap.bulanan', 'rekap.siswa',
+    'notif.riwayat', 'absen.saya'
+  ],
+
+  _cache: {},
+  _diag: { panggilan: 0, cachePukul: 0, foto: 0, lambat: 0, rerata: 0, terakhir: 0, build: null },
+
+  _kunci_: function (action, payload) {
+    return action + '|' + JSON.stringify(payload || {});
+  },
+
+  kosongkanCache_: function () { Api._cache = {}; },
+
+  diag: function () { return Api._diag; },
+
+  // ---------------------------------------------------------------
   // Rangkaian sumber foto untuk satu siswa.
   //
   // <img src=".../exec?action=foto"> diam-diam gagal kalau backend membalas
@@ -141,34 +207,56 @@ const Api = {
     if (!url) return Promise.reject(new Error('Tanpa foto'));
     if (Api._blob[url]) return Api._blob[url];
     const ambil = function () {
-      return fetch(url, { credentials: 'include', cache: 'no-store' })
-        .then(function (res) {
-          const tipe = (res.headers.get('Content-Type') || '').split(';')[0].trim();
-          if (tipe.indexOf('image/') === 0) {
-            return res.blob().then(function (b) { return URL.createObjectURL(b); });
-          }
-          return res.text().then(function (teks) {
-            let pesan = 'Foto ditolak backend (' + (tipe || 'tanpa tipe') + ')';
-            try {
-              const j = JSON.parse(teks);
-              if (j && j.error) pesan = (j.error.kode || 'ERROR') + ': ' + (j.error.pesan || '');
-            } catch (e) { }
-            const err = new Error(pesan);
-            err.dariBackend = true;
-            throw err;
-          });
-        })
+      return Api.panggilDenganBatas(url, 30000).then(function (res) {
+        const tipe = (res.headers.get('Content-Type') || '').split(';')[0].trim();
+        if (tipe.indexOf('image/') === 0) {
+          return res.blob().then(function (b) { return URL.createObjectURL(b); });
+        }
+        return res.text().then(function (teks) {
+          let pesan = 'Foto ditolak backend (' + (tipe || 'tanpa tipe') + ')';
+          try {
+            const j = JSON.parse(teks);
+            if (j && j.error) pesan = (j.error.kode || 'ERROR') + ': ' + (j.error.pesan || '');
+          } catch (e) { }
+          const err = new Error(pesan);
+          err.dariBackend = true;
+          throw err;
+        });
+      })
         .catch(function (err) {
           if (err && err.dariBackend) throw err;
-          return url;
+          // Gagal karena timeout atau jaringan: coba sekali lagi sebelum
+          // menyerah, karena server Apps Script memang sering lambat.
+          return Api.panggilDenganBatas(url, 30000).then(function (res2) {
+            const tipe2 = (res2.headers.get('Content-Type') || '').split(';')[0].trim();
+            if (tipe2.indexOf('image/') === 0) {
+              return res2.blob().then(function (b) { return URL.createObjectURL(b); });
+            }
+            return url;
+          }).catch(function () { return url; });
         });
     };
-    const usaha = ambil().then(function (src) {
+    const usaha = Api.antreFoto(ambil).then(function (src) {
       if (src !== url) Api._blob[url] = Promise.resolve(src);
+      Api._diag.foto++;
       return src;
+    }, function (err) {
+      Api._diag.foto++;
+      throw err;
     });
     Api._blob[url] = usaha;
     return usaha;
+  },
+
+  // fetch dengan batas waktu sendiri. Timeout bawaan fetch tidak ada, jadi
+  // permintaan yang menggantung akan menggantung selamanya.
+  panggilDenganBatas: function (url, ms) {
+    if (typeof AbortController === 'undefined') return fetch(url, { credentials: 'include', cache: 'no-store' });
+    const ctrl = new AbortController();
+    const timer = setTimeout(function () { ctrl.abort(); }, ms);
+    return fetch(url, { credentials: 'include', cache: 'no-store', signal: ctrl.signal })
+      .then(function (r) { clearTimeout(timer); return r; })
+      .catch(function (e) { clearTimeout(timer); throw e; });
   },
 
   // Pasang <img> dengan rangkaian cadangan: proxy -> Drive -> tanda merah.
@@ -205,9 +293,16 @@ const Api = {
     if (!Api.adaUrl()) {
       return Promise.reject({ nama: 'GagalJaringan', pesan: 'URL API belum diatur. Buka Pengaturan aplikasi.' });
     }
+    const bolehCache = o.ttl && Api.BACA_AKSI.indexOf(action) >= 0;
+    const kunci = Api._kunci_(action, payload);
+    if (bolehCache && Api._cache[kunci] && Api._cache[kunci].sampai > Date.now()) {
+      Api._diag.cachePukul++;
+      return Promise.resolve(Api._cache[kunci].data);
+    }
     const controller = new AbortController();
-    const ms = o.timeout || 25000;
+    const ms = o.timeout || Api.TIMEOUT;
     const timer = setTimeout(function () { controller.abort(); }, ms);
+    const mulai = Date.now();
 
     const body = JSON.stringify({
       action: action,
@@ -232,7 +327,20 @@ const Api = {
       } catch (e) {
         throw { nama: 'GagalJawab', pesan: 'Jawaban server tidak valid.', mentah: teks };
       }
-      if (data && data.ok) return data;
+      if (data && data.ok) {
+        const dt = Date.now() - mulai;
+        Api._diag.panggilan++;
+        Api._diag.terakhir = dt;
+        Api._diag.rerata = Api._diag.rerata
+          ? Math.round((Api._diag.rerata * 0.7) + (dt * 0.3))
+          : dt;
+        if (dt > 5000) Api._diag.lambat++;
+        if (bolehCache) Api._cache[kunci] = { data: data, sampai: Date.now() + (o.ttl || Api.TTL) };
+        // Aksi yang bukan murni baca berarti ada data yang berubah, jadi
+        // cache tidak boleh dipakai lagi.
+        if (Api.BACA_AKSI.indexOf(action) < 0) Api.kosongkanCache_();
+        return data;
+      }
       const err = (data && data.error) || { kode: 'UNKNOWN', pesan: 'Permintaan gagal.' };
       if (err.kode === 'AUTH') {
         Api.bersihkanSesi();
@@ -248,6 +356,21 @@ const Api = {
       if (err instanceof TypeError) throw { nama: 'GagalJaringan', pesan: 'Tidak ada koneksi ke server.' };
       throw { nama: 'GagalJaringan', pesan: Api.kelasGalat(err) };
     });
+  },
+
+  // Panggil dengan satu kali percobaan ulang otomatis. Berguna untuk aksi
+  // yang sering gagal karena server sedang lambat, bukan karena input salah.
+  panggilUlang: function (action, payload, opsi) {
+    const coba = function (sisa) {
+      return Api.panggil(action, payload, opsi).catch(function (err) {
+        if (!sisa) throw err;
+        if (err && (err.nama === 'GagalWaktu' || err.nama === 'GagalJaringan')) {
+          return new Promise(function (r) { setTimeout(r, 1200); }).then(coba.bind(null, false));
+        }
+        throw err;
+      });
+    };
+    return coba(true);
   },
 
   gambar: function (action, payload) {

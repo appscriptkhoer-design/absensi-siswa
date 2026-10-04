@@ -208,6 +208,29 @@ Cara kerja radius GPS:
 - Absen manual oleh admin/guru tidak pernah tunduk pada radius, karena operator
   sudah berada di depan siswa.
 
+### Kalau aplikasi terasa lambat
+
+Sumber lambat yang sudah diukur per Juli 2026:
+
+| Penyebab | Solusi yang sudah dipasang |
+| --- | --- |
+| Satu panggilan API selalu 2,4–3,4 detik (biaya platform Apps Script + redirect) | Cache respons di memori 45 detik untuk semua aksi baca; berpindah halaman tidak mengambil ulang data yang sama |
+| Halaman rekap memakai dua panggilan berurutan | Sekarang `Promise.all`, jadi satu kali tunggu |
+| 40 siswa berarti 40 permintaan foto sekaligus | Antrean foto (maksimal 6 jalan bersamaan) + `IntersectionObserver` (foto hanya diambil saat barisnya terlihat) |
+| Daftar siswa memuat semua baris sekaligus | `siswa.daftar` dipaginasi 30 baris, tombol "Muat lagi" |
+| Halaman rekap/siswa kosong selama menunggu | Kerangka bayangan (`Ui.rangka`) tampil seketika |
+| Kesalahan tidak ada jalan keluar | `Ui.pesanGalat` menyertakan tombol "Coba lagi" |
+| Service worker menunggu GitHub Pages dulu | Navigasi jadi cache-first, pembaruan jalan di belakang; ada toast "Muat ulang" kalau versi baru sampai |
+| Lambat tidak terukur | Halaman **Akun → Kondisi Server** menampilkan build backend, rata-rata & terakhir durasi, jumlah panggilan, hit cache, foto, dan antrean |
+
+Kalau rata-rata di halaman Akun melonjak, salin angka itu — itu hasil
+pengukuran di perangkat sendiri, bukan perkiraan.
+
+Batas yang tidak bisa diatasi dari sisi aplikasi: 2,4 detik itu adalah harga
+dasar satu permintaan ke Apps Script. Untuk melompatinya, backend harus pindah
+ke hosting lain (Cloudflare Worker, VPS) — bukan dengan menulis kode lebih
+cantik.
+
 ### Kartu & cetak PDF
 
 Tombol cetak menunggu seluruh `<img>` selesai diunduh (maksimal 8 detik per
@@ -321,6 +344,52 @@ Untuk memeriksa sendiri:
 ```
 siswa perbarui → buka sheet SISWA → kolom file_id_foto terisi?
 ```
+
+### PR tertunda: foto yang lambat dan tanda merah
+
+Status: **ditunda**, diketahui, belum dikerjakan. Bukan salah pada kode foto —
+masalahnya adalah arsitektur.
+
+#### Yang sudah diukur (Juli 2026, dari Termux ke deployment live)
+
+| Yang diukur | Waktu |
+| --- | --- |
+| `app.info` (backend tidak melakukan apa-apa) | 2,0 – 2,9 detik |
+| `sekolah.list` (baca 1 sheet) | 2,2 – 3,4 detik |
+
+Artinya biaya terkecil satu panggilan API adalah ~2,4 detik dan itu **tidak
+bisa dihapus**: biaya platform Apps Script ditambah redirect wajib (POST → 302 →
+GET). Membaca sheet hanya menambah ~0,5 detik.
+
+#### Dua sebab tanda merah
+
+1. **Beban permintaan**: halaman siswa memanggil `Ui.avatar()` untuk tiap
+   baris, dan tombol "Pilih semua" di halaman kartu membuat kartu untuk semua
+   siswa. Dengan 40 siswa itu 40 permintaan foto sekaligus, masing-masing dua
+   round-trip plus tiga baca sheet dan Drive. Server Apps Script tidak sanggup
+   melayani semuanya, sebagian lewat batas waktu (itulah "Server terlalu lama
+   merespons"), sebagian lagi jadi tanda merah.
+2. **Cache**: tiap permintaan foto membaca sheet `SESI`, `USERS`, dan `SISWA`
+   dari nol. `CacheService` tidak pernah dipakai untuk foto.
+
+#### Yang sudah dibereskan (terdaftar 2026-07-04)
+
+- Antrean foto membatasi 6 permintaan berjalan sekaligus
+  (`Api.ANTREAN_FOTO`), sisanya menunggu giliran.
+- `IntersectionObserver` bersama: foto baru diambil kalau barisnya masih dekat
+  dengan layar, bukan semuanya langsung.
+- `siswa.daftar` bisa dipaginasi 30 baris per halaman.
+- Foto punya batas waktu 30 detik dan satu percobaan ulang.
+
+#### Dua pilihan untuk dikerjakan nanti
+
+| Opsi | Cara kerja | Keuntungan | Trade-off |
+| --- | --- | --- | --- |
+| **Link publik Drive** (sudah diizinkan) | `Media.sisipFoto_()` menyalakan berbagi `anyone-with-link`; frontend memakai `https://drive.google.com/uc?export=view&id=...` langsung, tanpa lewat Apps Script | ~200 ms per foto, tanpa server sama sekali | Perlu *backfill* untuk foto yang sudah ada; link bisa dibagikan siapa pun yang punya URL |
+| **Endpoint batch** | satu permintaan mengembalikan beberapa foto sekaligus | 40 foto dalam 1 permintaan | Perlu endpoint baru + cache Drive di backend; kuota Apps Script harus diawasi |
+
+Ukuran thumbnail (480 px, kualitas 0,7) perlu ditambahkan di kedua opsi —
+saat ini foto dikirim apa adanya pada 900 px.
 
 ### Tombol yang "tidak terjadi apa-apa"
 

@@ -57,12 +57,12 @@ function fmtTanggalLengkap (tanggalStr) {
 };
 
 const Ui = {
-  toast: function (pesan, jenis) {
+  toast: function (pesan, jenis, tombol) {
     const lama = document.querySelectorAll('.toast');
     lama.forEach(function (t) { t.remove(); });
-    const el = h('div', { class: 'toast toast--' + (jenis || 'info'), role: 'status' }, [
-      h('span', { text: pesan })
-    ]);
+    const isi = [h('span', { text: pesan })];
+    if (tombol) isi.push(tombol);
+    const el = h('div', { class: 'toast toast--' + (jenis || 'info'), role: 'status' }, isi);
     document.body.appendChild(el);
     setTimeout(function () { el.remove(); }, jenis === 'err' ? 6000 : 3000);
   },
@@ -73,6 +73,35 @@ const Ui = {
       h('div', { class: 'teks-kecil', text: pesan || 'Memuat…' })
     ]);
     return el;
+  },
+
+  // Kerangka bayangan: tampil seketika selagi server menjawab, supaya
+  // halaman tidak terlihat kosong selama menunggu.
+  rangka: function (baris) {
+    const isi = [];
+    for (let i = 0; i < (baris || 4); i++) {
+      isi.push(h('div', { class: 'rangka__baris' }, [
+        h('div', { class: 'rangka__avatar' }),
+        h('div', { class: 'rangka__teks' }, [
+          h('div', { class: 'rangka__garis', style: 'width:58%' }),
+          h('div', { class: 'rangka__garis', style: 'width:34%' })
+        ])
+      ]));
+    }
+    return h('div', { class: 'rangka', 'aria-hidden': 'true' }, isi);
+  },
+
+  // Kotak pesan kesalahan yang menyertakan tombol mencoba lagi. Tanpa
+  // tombolnya, lambat dan gagal terasa sama saja: buntu.
+  pesanGalat: function (pesan, lagi) {
+    const isi = [h('div', { class: 'teks-kecil', text: pesan })];
+    if (typeof lagi === 'function') {
+      isi.push(h('button', {
+        class: 'btn btn--sm', type: 'button', text: 'Coba lagi',
+        onclick: function () { lagi(); }
+      }));
+    }
+    return h('div', { class: 'card card--warn galat-ulang' }, isi);
   },
 
   modal: function (opsi) {
@@ -142,6 +171,27 @@ const Ui = {
     Ui.toast(pesan, 'err');
   },
 
+  // Satu IntersectionObserver dipakai bersama untuk semua avatar, bukan satu
+  // observer per gambar. Foto baru dimuat kalau elemennya sudah dekat dengan
+  // layar; sisanya menunggu sampai digulir atau halaman dicetak.
+  _fotoIO: null,
+
+  fotoNanti: function (el, mulai) {
+    if (typeof IntersectionObserver === 'undefined') { mulai(); return; }
+    if (!Ui._fotoIO) {
+      Ui._fotoIO = new IntersectionObserver(function (entri) {
+        entri.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          Ui._fotoIO.unobserve(e.target);
+          const f = e.target.__mulaiFoto;
+          if (f) { e.target.__mulaiFoto = null; f(); }
+        });
+      }, { rootMargin: '300px 0px' });
+    }
+    el.__mulaiFoto = mulai;
+    Ui._fotoIO.observe(el);
+  },
+
   avatar: function (data, ukuran) {
     const cls = 'avatar' + (ukuran === 'sm' ? ' avatar--sm' : ukuran === 'lg' ? ' avatar--lg' : '');
     const box = h('div', { class: cls, text: data && data.pravatar ? data.pravatar : '?' });
@@ -162,7 +212,9 @@ const Ui = {
         text: '!'
       }));
     };
-    Api.pasangFoto(img, proxy, (data && data.foto_uc) || publik, tanda)['catch'](function () { });
+    Ui.fotoNanti(img, function () {
+      Api.pasangFoto(img, proxy, (data && data.foto_uc) || publik, tanda)['catch'](function () { });
+    });
     return box;
   },
 

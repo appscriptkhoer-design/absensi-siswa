@@ -279,3 +279,32 @@ html5-qrcode #scan-anchor { border-radius: 6px !important; }
 .avatar--sm .avatar__galat { font-size: 11px; }
 .avatar--lg .avatar__galat { font-size: 20px; }
 .kartu__foto .avatar__galat { min-height: 30mm; }
+
+/* Kerangka bayangan selagi server menjawab. */
+.rangka { display: grid; gap: 10px; }
+/* Tombol "Muat lagi" dan kerangka tidak perlu bayangan tebal tema ini. */
+.btn--more { margin-top: 4px; }
+.rangka__baris {
+  display: flex; gap: 12px; align-items: center;
+  padding: 10px 12px; border-radius: var(--r);
+  border: var(--line) solid var(--ink);
+}
+.rangka__avatar {
+  width: 42px; height: 42px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--bg-pattern);
+}
+.rangka__teks { flex: 1 1 auto; display: grid; gap: 7px; }
+.rangka__garis { height: 10px; border-radius: 6px; background: var(--bg-pattern); }
+.rangka__baris, .rangka__avatar, .rangka__garis { animation: denyut 1.3s ease-in-out infinite; }
+@keyframes denyut { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media print { .rangka { display: none; } }
+
+/* Pesan kesalahan yang bisa dicoba ulang. */
+.galat-ulang {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+/* Toast yang membawa tombol (mis. "Muat ulang"). */
+.toast { align-items: center; }
+.toast .btn { flex: 0 0 auto; }

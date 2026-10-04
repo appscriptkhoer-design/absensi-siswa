@@ -35,7 +35,7 @@ Hal.daftar('#/', {
     const kartu = h('div', { class: 'card', style: 'margin-top:16px' }, [Ui.muat('Memuat ringkasan…')]);
     wadah.appendChild(kartu);
 
-    return Api.panggil('rekap.dashboard', {}).then(function (d) {
+    return Api.panggil('rekap.dashboard', {}, { ttl: 30000 }).then(function (d) {
       kartu.innerHTML = '';
       kartu.appendChild(h('div', { class: 'card__title' }, [
         h('h2', { text: 'Ringkasan Hari Ini' }),

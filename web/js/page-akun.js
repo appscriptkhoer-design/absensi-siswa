@@ -157,6 +157,32 @@ Hal.daftar('#/akun', {
       });
     }
 
+    // Diagnostik. Satu panggilan API ke Apps Script selalu memakan waktu
+    // beberapa detik karena biaya platformnya, jadi halaman ini menampilkan
+    // angka nyata dari perangkat ini — bukan perkiraan.
+    function kartuDiagnostik() {
+      const d = Api.diag();
+      const dtk = function (ms) { return (Math.round(ms / 100) / 10) + ' dtk'; };
+      const kartu = h('div', { class: 'card' }, [
+        h('h2', { class: 'card__title', text: 'Kondisi Server' }),
+        h('div', { class: 'kv-list' }, [
+          baris('build', 'Versi backend', d.build === null ? 'belum dicek' : d.build + (d.build < Api.BUILD_MIN ? ' (terlalu lama — perbarui deployment)' : ' (terbaru)')),
+          baris('rata', 'Rata-rata panggilan', d.panggilan ? dtk(d.rerata) : 'belum ada data'),
+          baris('akhir', 'Panggilan terakhir', d.terakhir ? dtk(d.terakhir) : '-'),
+          baris('jml', 'Jumlah panggilan', String(d.panggilan)),
+          baris('cache', 'Dilayani dari cache', String(d.cachePukul)),
+          baris('lambat', 'Calls lebih dari 5 dtk', String(d.lambat)),
+          baris('foto', 'Foto dimuat', String(d.foto)),
+          baris('antre', 'Foto di antrean', String(Api._antrean.length)),
+          baris('sw', 'Cache aplikasi', navigator.serviceWorker && navigator.serviceWorker.controller ? 'aktif' : 'belum aktif')
+        ]),
+        h('p', { class: 'teks-kecil', style: 'margin-top:10px', text: 'Angka diukur di perangkat ini. Salin dan kirim kalau ada complaint lambat.' })
+      ]);
+      return kartu;
+    }
+
+    wadah.appendChild(kartuDiagnostik());
+
     function keluar() {
       Ui.konfirmasi('Keluar dari akun ini di perangkat ini?', 'Keluar', 'Keluar').then(function () {
         return Api.panggil('auth.logout', {}).catch(function () { })
