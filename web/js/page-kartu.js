@@ -53,23 +53,20 @@ Hal.daftar('#/kartu', {
     wadah.appendChild(areaCetak);
 
     function fotoSiswa(s, besar) {
-      // Proxy bertoken dulu, baru URL publik Drive sebagai cadangan.
-      const proxy = s.foto_proxy ? Api.fotoUrl(s.foto_proxy) : '';
-      const publik = s.foto || '';
-      const src = proxy || publik;
-      if (!src) return h('div', { class: 'kartu__foto', text: s.pravatar || '?' });
-      const img = h('img', { src: src, alt: '' });
-      const box = h('div', { class: 'kartu__foto' }, [img]);
-      let sudahCadangan = false;
-      img.addEventListener('error', function () {
-        if (!sudahCadangan && proxy && publik) {
-          sudahCadangan = true;
-          img.src = publik;
-          return;
-        }
-        box.textContent = s.pravatar || '?';
-      });
+      const box = h('div', { class: 'kartu__foto' });
       if (besar) box.style.width = '30mm';
+      if (!s.foto_proxy && !s.foto) {
+        box.textContent = s.pravatar || '?';
+        return box;
+      }
+      const img = h('img', { alt: '' });
+      box.appendChild(img);
+      Api.fotoBlob(s.foto_proxy, s.foto_uc || s.foto)
+        .then(function (src) { img.src = src; })
+        .catch(function () {
+          box.textContent = '';
+          box.appendChild(h('span', { class: 'avatar__galat', text: '!' }));
+        });
       return box;
     }
 

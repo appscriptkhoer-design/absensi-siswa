@@ -147,22 +147,22 @@ const Ui = {
     const box = h('div', { class: cls, text: data && data.pravatar ? data.pravatar : '?' });
     // Proxy bertoken selalu dicoba lebih dulu: URL thumbnail Drive sering
     // ditolak saat di-hotlink dari origin PWA, sedangkan proxy kita sendiri.
-    const proxy = data && data.foto_proxy ? Api.fotoUrl(data.foto_proxy) : '';
+    const proxy = data && data.foto_proxy ? data.foto_proxy : '';
     const publik = data && data.foto ? data.foto : '';
     if (!proxy && !publik) return box;
 
-    const img = h('img', { src: proxy || publik, alt: '', loading: 'lazy' });
-    let sudahCadangan = false;
-    img.addEventListener('error', function () {
-      if (!sudahCadangan && proxy && publik) {
-        sudahCadangan = true;
-        img.src = publik;
-        return;
-      }
-      box.textContent = (data && data.pravatar) || '?';
-    });
+    const img = h('img', { alt: '', loading: 'lazy' });
     box.textContent = '';
     box.appendChild(img);
+    Api.fotoBlob(proxy, data && data.foto_uc ? data.foto_uc : publik)
+      .then(function (src) { img.src = src; })
+      .catch(function (err) {
+        // Kalau proxy benar-benar tidak bisa dipakai, tunjukkan
+        // penyebabnya (mis. "AUTH: Sesi tidak ditemukan") supaya masalah
+        // tidak lagi muncul sebagai kotak kosong tanpa penjelasan.
+        box.textContent = '';
+        box.appendChild(h('span', { class: 'avatar__galat', title: err.message || '', text: '!' }));
+      });
     return box;
   },
 

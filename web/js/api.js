@@ -82,6 +82,9 @@ const Api = {
     Simpan.hapus(K.EXPIRES);
     Simpan.hapus(K.USER);
     Simpan.hapus(K.SEKOLAH);
+    Api._blob = {};
+    Api._build = null;
+    Api._cekBuild = null;
   },
 
   fotoUrl: function (proxy) {
@@ -101,7 +104,7 @@ const Api = {
   // URL /exec kalau deployment tidak pernah di-update, dan gejalanya diam-diam
   // (foto tidak muncul, pengaturan tidak tersimpan). app.info melaporkan build
   // sehingga versinya bisa dicek tanpa login.
-  BUILD_MIN: 16,
+  BUILD_MIN: 18,
   _build: null,
 
   cekBuild: function () {
@@ -117,6 +120,53 @@ const Api = {
   buildRendah: function () {
     return Api._build !== null && Api._build < Api.BUILD_MIN;
   },
+
+  _blob: {},
+
+  // Muat foto lewat proxy bertoken dan kembalikan object URL.
+  //
+  // <img src=".../exec?action=foto"> tidak bisa membedakan "gagal dimuat"
+  // dari "backend membalas JSON error", jadi hasilnya kotak kosong tanpa
+  // penjelasan. fetch + pemeriksaan Content-Type membuat error-nya terlihat,
+  // dan object URL-nya bisa dipakai ulang untuk cetak.
+  fotoBlob: function (proxy, cadangan) {
+    const url = Api.fotoUrl(proxy);
+    if (!url) return Promise.reject(new Error('Tanpa foto'));
+    if (Api._blob[url]) return Api._blob[url];
+    const ambil = function (u, bawaKookie) {
+      return fetch(u, {
+        credentials: bawaKookie ? 'include' : 'omit',
+        cache: bawaKookie ? 'no-store' : 'force-cache'
+      }).then(function (res) {
+        const tipe = (res.headers.get('Content-Type') || '').split(';')[0].trim();
+        if (tipe.indexOf('image/') === 0) return res.blob();
+        return res.text().then(function (teks) {
+          let pesan = 'Foto tidak bisa dimuat (' + (tipe || 'tanpa tipe') + ')';
+          try {
+            const j = JSON.parse(teks);
+            if (j && j.error) pesan = (j.error.kode || 'ERROR') + ': ' + (j.error.pesan || '');
+          } catch (e) { }
+          const err = new Error(pesan);
+          err.tipe = tipe;
+          throw err;
+        });
+      });
+    };
+    const usaha = ambil(url, true).catch(function (err) {
+      // Proxy gagal (biasanya sesi habis atau backend versi lama) — coba
+      // URL Drive langsung, tapi hanya kalau filenya dibagikan publik.
+      if (!cadangan) throw err;
+      return ambil(cadangan, false).catch(function () { throw err; });
+    }).then(function (blob) {
+      const obj = URL.createObjectURL(blob);
+      Api._blob[url] = Promise.resolve(obj);
+      return obj;
+    });
+    Api._blob[url] = usaha;
+    return usaha;
+  },
+
+  bersihkanBlob_: function () { Api._blob = {}; },
 
   panggil: function (action, payload, opsi) {
     const o = opsi || {};

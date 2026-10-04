@@ -223,9 +223,13 @@ Dua jebakan CSS yang pernah membuat hasil cetak kosong:
   `body > *:not(#shell)`.
 - `.app` ada di `#shell` itu sendiri, jadi `#hal-kartu .app` tidak pernah cocok.
 
-Sumber foto memakai urutan: **proxy bertoken dulu**
-(`?action=foto&id=..&t=..`), baru URL `drive.google.com/thumbnail` sebagai
-cadangan. Thumbnail Drive sering ditolak saat di-hotlink dari origin PWA
+Foto dimuat dengan `Api.fotoBlob()`: proxy bertoken lebih dulu
+(`?action=foto&id=..&t=..`), lalu `drive.google.com/uc?export=view&id=..`
+sebagai cadangan. Keduanya tidak dipasang lewat `<img src>` langsung, karena response
+JSON error dari backend akan gagal dimuat sebagai gambar dan hasilnya kotak
+kosong tanpa penjelasan. `Api.fotoBlob()` memeriksa `Content-Type`- dulu;
+kalau ternyata JSON, pesan error-nya (mis. `AUTH: Sesi tidak ditemukan`)
+ditampilkan sebagai tanda merah di kotak avatar. Thumbnail Drive sering ditolak saat di-hotlink dari origin PWA
 sehingga muncul kotak kosong; proxy selalu milik aplikasi sendiri. Backend
 menyertakan `foto_proxy` untuk semua siswa, bukan hanya saat `foto_publik` mati.
 

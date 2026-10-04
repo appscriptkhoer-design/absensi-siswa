@@ -262,3 +262,20 @@ html5-qrcode #scan-anchor { border-radius: 6px !important; }
 .peringatan-build strong { font-size: 14px; }
 
 @media print { .peringatan-build { display: none !important; } }
+
+/* Tanda foto gagal dimuat. Kalau ini muncul, arahkan kursor ke tanda untuk
+   melihat pesan error dari backend (mis. "AUTH: Sesi tidak ditemukan"). */
+.avatar__galat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+  font-weight: 700;
+  color: #fff;
+  background: #b3261e;
+}
+.avatar--sm .avatar__galat { font-size: 11px; }
+.avatar--lg .avatar__galat { font-size: 20px; }
+.kartu__foto .avatar__galat { min-height: 30mm; }
