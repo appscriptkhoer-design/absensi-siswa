@@ -12,6 +12,21 @@ Hal.daftar('#/akun', {
       ]);
     }
 
+    // Baris yang isinya diisi setelah dirender, untuk nilai yang hanya bisa
+    // dibaca saat runtime (mis. nama cache aktif milik service worker).
+    function barisIsi(label, awal) {
+      const nilai = h('div', { class: 'kv__v', text: awal });
+      const row = h('div', { class: 'kv' }, [h('div', { class: 'kv__k', text: label }), nilai]);
+      row.isi = function (teks) { nilai.textContent = teks; };
+      return row;
+    }
+
+    // Angka versi aset diambil dari Cache Storage, jadi selalu cocok dengan
+    // file yang benar-benar dipakai perangkat ini.
+    App.versiAset().then(function (nama) {
+      barisVersi.isi(APP_WEB.VERSI + (nama ? ' · ' + nama : ' · cache belum aktif'));
+    });
+
     wadah.appendChild(h('h1', { text: 'Akun Saya' }));
 
     wadah.appendChild(h('a', {
@@ -99,11 +114,13 @@ Hal.daftar('#/akun', {
       ])
     ]));
 
+    const barisVersi = barisIsi('Versi aplikasi', APP_WEB.VERSI + ' · memuat…');
+
     wadah.appendChild(h('div', { class: 'card' }, [
       h('h2', { class: 'card__title', text: 'Tampilan' }),
       h('div', { class: 'kv-list' }, [
         baris('t', 'Tema', document.documentElement.dataset.tema === 'gelap' ? 'Gelap' : 'Terang'),
-        baris('i', 'Versi aplikasi', APP_WEB.VERSI)
+        barisVersi
       ]),
       h('div', { class: 'btn-row', style: 'margin-top:12px' }, [
         (function () {
@@ -111,6 +128,20 @@ Hal.daftar('#/akun', {
           b.addEventListener('click', function () {
             Ui.gantiTema();
             App.render();
+          });
+          return b;
+        })(),
+        (function () {
+          const b = h('button', { class: 'btn btn--sm', type: 'button', text: '🔄 Periksa Pembaruan' });
+          b.addEventListener('click', function () {
+            Ui.tombolMuat(b, function () {
+              return App.periksaPembaruan();
+            }).then(function () {
+              Ui.toast('Sudah dicek di server. Kalau ada versi baru, pilih "Muat ulang".', 'ok', 6000);
+              return App.versiAset();
+            }).then(function (nama) {
+              barisVersi.isi(APP_WEB.VERSI + (nama ? ' · ' + nama : ' · cache belum aktif'));
+            });
           });
           return b;
         })(),

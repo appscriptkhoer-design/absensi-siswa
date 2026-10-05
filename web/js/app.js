@@ -278,6 +278,29 @@ const App = {
     }
   },
 
+  // Nama cache aktif dibaca langsung dari Cache Storage, bukan ditulis manual
+  // di dalam kode. Dulu menu Akun hanya menampilkan APP_WEB.VERSI yang
+  // hardcoded '1.0.0', jadi begitu cache naik ke v3 layarnya tetap menulis 1.
+  versiAset: function () {
+    if (!window.caches || !window.caches.keys) return Promise.resolve('');
+    return caches.keys().then(function (kunci) {
+      const milikKita = kunci.filter(function (k) { return /^absensi-v[0-9]+$/.test(k); });
+      if (!milikKita.length) return '';
+      milikKita.sort();
+      return milikKita[milikKita.length - 1];
+    })['catch'](function () { return ''; });
+  },
+
+  // Memaksa service worker mengambil sw.js terbaru. Tombol "Periksa
+  // pembaruan" tidak menunggu aplikasi dibuka dua kali.
+  periksaPembaruan: function () {
+    if (!('serviceWorker' in navigator)) return Promise.reject(new Error('Browser ini tidak mendukung service worker'));
+    return navigator.serviceWorker.getRegistration().then(function (reg) {
+      if (!reg) return navigator.serviceWorker.register('sw.js').then(function () { return true; });
+      return reg.update().then(function () { return true; });
+    });
+  },
+
   tawarMuatUlang: function (swBaru) {
     if (Simpan.ambil(K.SW_DISARANKAN, false)) return;
     Simpan.simpan(K.SW_DISARANKAN, true);

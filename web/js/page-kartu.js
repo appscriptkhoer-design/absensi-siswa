@@ -3,7 +3,6 @@ Hal.daftar('#/kartu', {
   render: function (wadah, query) {
     const sekolahId = (Api.sekolah() || {}).id;
     let kelas = query.kelas || '';
-    let duaSisi = true;
     let semuaTerpilih = {};
     let data = [];
 
@@ -13,10 +12,6 @@ Hal.daftar('#/kartu', {
     const info = h('div', { class: 'card card--tight' });
 
     const tombolCetak = h('button', { class: 'btn btn--primary', type: 'button', text: '🖨 Cetak / Simpan PDF' });
-    const cekDuaSisi = h('input', { type: 'checkbox', style: 'width:22px;height:22px' });
-    cekDuaSisi.checked = true;
-    cekDuaSisi.addEventListener('change', function () { duaSisi = cekDuaSisi.checked; gambar(); });
-
     // Menunggu foto sampai tuntas itu lambat untuk kelas besar, jadi bukan
     // bawaan. Yang bawaan: cetak sekarang, foto yang sudah siap ikut tercetak.
     const cekTungguFoto = h('input', { type: 'checkbox', style: 'width:22px;height:22px' });
@@ -42,10 +37,6 @@ Hal.daftar('#/kartu', {
       h('div', { class: 'card card--tight' }, [
         h('div', { class: 'field-row' }, [
           h('div', { class: 'field' }, [h('label', { class: 'label', text: 'Kelas' }), kelasFilter]),
-          h('div', { class: 'field' }, [
-            h('label', { class: 'label', text: 'Format' }),
-            h('label', { style: 'display:flex;align-items:center;gap:8px;min-height:56px;font-weight:800' }, [cekDuaSisi, 'Dua sisi (QR di belakang)'])
-          ]),
           h('div', { class: 'field' }, [
             h('label', { class: 'label', text: 'Foto' }),
             h('label', { style: 'display:flex;align-items:center;gap:8px;min-height:56px;font-weight:800' }, [cekTungguFoto, 'Tunggu semua foto (lambat)'])
@@ -76,7 +67,11 @@ Hal.daftar('#/kartu', {
       return box;
     }
 
-    function kartuDepan(s, namaSekolah) {
+    // Satu kartu untuk satu sisi saja: foto, identitas, QR, barcode, dan kolom
+    // tanda tangan semuanya muat di kartu 63x88mm. Versi lama memakai
+    // kartuDepan + kartuBelakang untuk cetak dua sisi; sesuai permintaan,
+    // mode dua sisi dihapus seluruhnya.
+    function kartuGabung(s, namaSekolah) {
       return h('div', { class: 'kartu' }, [
         h('div', { class: 'kartu__kepala' }, [
           fotoSiswa(s),
@@ -87,29 +82,12 @@ Hal.daftar('#/kartu', {
             h('div', { class: 'kartu__meta', text: (s.nis ? 'NIS ' + s.nis : '') + (s.gender ? ' · ' + (s.gender === 'L' ? 'L' : 'P') : '') })
           ])
         ]),
+        h('div', { class: 'kartu__qr', style: 'width:16mm;margin:0 auto' }, [h('img', { class: 'js-qr', 'data-nilai': s.barcode, alt: '' })]),
         h('div', { class: 'kartu__kode' }, [h('svg', { class: 'js-kode', 'data-nilai': s.barcode })]),
         h('div', { class: 'kartu__nis', text: s.barcode }),
         h('div', { class: 'kartu__ttd' }, [
           h('span', { text: 'Kelas' }),
           h('span', { text: 'Orang Tua' })
-        ])
-      ]);
-    }
-
-    function kartuBelakang(s, namaSekolah) {
-      return h('div', { class: 'kartu' }, [
-        h('div', { class: 'kartu__kepala' }, [
-          h('div', { class: 'kartu__identitas' }, [
-            h('div', { class: 'kartu__sekolah', text: namaSekolah }),
-            h('div', { class: 'kartu__nama', text: s.nama }),
-            h('div', { class: 'kartu__meta', text: 'Kelas ' + (s.kelas || '-') })
-          ])
-        ]),
-        h('div', { class: 'kartu__qr', style: 'width:34mm;margin:0 auto' }, [h('img', { class: 'js-qr', 'data-nilai': s.barcode, alt: '' })]),
-        h('div', { class: 'kartu__nis', text: 'Pindai QR ini di aplikasi absen' }),
-        h('div', { class: 'kartu__ttd' }, [
-          h('span', { text: 'No. Kartu' }),
-          h('span', { text: s.barcode })
         ])
       ]);
     }
@@ -122,8 +100,7 @@ Hal.daftar('#/kartu', {
         info.textContent = 'Belum ada siswa dipilih.';
         return;
       }
-      info.textContent = terpilih.length + ' kartu siap dicetak · ' +
-        (duaSisi ? '2 sisi (QR di belakang)' : '1 sisi (QR di depan)');
+      info.textContent = terpilih.length + ' kartu siap dicetak · 1 sisi (QR di depan)';
 
       const namaSekolah = (Api.sekolah() || {}).nama || 'SEKOLAH';
 
@@ -147,23 +124,8 @@ Hal.daftar('#/kartu', {
         };
       };
 
-      if (duaSisi) {
-        areaCetak.appendChild(h('div', {}, [
-          h('div', { class: 'cetak-sisi__judul', text: 'Sisi Depan' }),
-          h('div', { class: 'cetak-sisi__sisi', id: 'sisi-depan' },
-            terpilih.map(bangun(kartuDepan)).filter(Boolean))
-        ]));
-        areaCetak.appendChild(h('div', {}, [
-          h('div', { class: 'cetak-sisi__judul', text: 'Sisi Belakang' }),
-          h('div', { class: 'cetak-sisi__sisi', id: 'sisi-belakang' },
-            terpilih.map(bangun(kartuBelakang)).filter(Boolean))
-        ]));
-      } else {
-        areaCetak.appendChild(h('div', {}, [
-          h('div', { class: 'cetak-sisi__sisi', id: 'sisi-depan' },
-            terpilih.map(bangun(kartuGabung)).filter(Boolean))
-        ]));
-      }
+      areaCetak.appendChild(h('div', { class: 'cetak-sisi__sisi', id: 'sisi-depan' },
+        terpilih.map(bangun(kartuGabung)).filter(Boolean)));
 
       renderGambar();
 
@@ -171,13 +133,6 @@ Hal.daftar('#/kartu', {
         info.textContent += ' · ' + gagal + ' kartu gagal dibuat (lihat konsol browser)';
         Ui.toast(gagal + ' kartu gagal dibuat. Kartu lain tetap dicetak.', 'err', 6000);
       }
-    }
-
-    function kartuGabung(s, namaSekolah) {
-      const el = kartuDepan(s, namaSekolah);
-      const qr = h('div', { class: 'kartu__qr', style: 'width:14mm' }, [h('img', { class: 'js-qr', 'data-nilai': s.barcode, alt: '' })]);
-      el.insertBefore(qr, el.querySelector('.kartu__kode'));
-      return el;
     }
 
     function renderGambar() {

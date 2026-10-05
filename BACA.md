@@ -22,7 +22,7 @@ absensi-siswa/
 | Multi-sekolah | Sheet `SEKOLAH` + `sekolah_id` di semua tabel data, superadmin dapat berganti sekolah |
 | Absensi | Scan QR/barcode, absen manual, tipe `masuk` / `pulang`, status `hadir` / `telat` / `izin` / `sakit` / `alpha`, cutoff jam, radius GPS |
 | Siswa | CRUD, impor CSV, ekspor CSV, template CSV, barcode `CODE128`, kode ortu 6 karakter, foto Drive, aktif/nonaktif |
-| Kartu | Cetak A4 satu sisi atau dua sisi, QR Code + CODE128, foto, tanda tangan |
+| Kartu | Cetak A4 satu sisi, QR Code + CODE128, foto, tanda tangan |
 | Rekap | Harian per siswa, bulanan (kalender + tabel + peta hari per siswa), CSV rekap harian, CSV bulanan bermatrix 1–31, CSV absensi mentah |
 | Notifikasi | Telegram Bot (aktif), WhatsApp Cloud API (adapter, nonaktif), log riwayat + kirim ulang |
 | Antarmuka | Neo-Brutalism, dark mode, bahasa Indonesia, Android-first, PWA + service worker |
@@ -525,7 +525,7 @@ setTelegramWebhook('https://script.google.com/macros/s/DEPLOYMENT_ID/exec');
    `telegram_chat_id` siswa secara otomatis.
 5. Uji dari **Administrasi → Notifikasi → Kirim Pesan Tes**.
 
-Untuk，加强对 webhook, set Script Property `TELEGRAM_WEBHOOK_SECRET`.
+Untuk menguatkan webhook, set Script Property `TELEGRAM_WEBHOOK_SECRET`.
 
 ### WhatsApp (opsional, belum aktif)
 
@@ -539,7 +539,8 @@ token Meta Cloud API dan template pesan disetujui. Isi `wa_aktif`, `wa_phone_id`
    lebih dulu). Pastikan kolom `nama` dan `kelas` terisi; barcode dan kode orang
    tua dibuat otomatis bila kosong.
 2. **Cetak kartu** — **Kartu Siswa** → pilih kelas → centang siswa → **Cetak**.
-   Cetak dua sisi bila printer mendukung; sisi belakang berisi QR.
+   Satu kartu satu sisi: foto, identitas, QR, barcode, dan kolom tanda tangan
+   semuanya di satu kartu 63×88 mm.
 3. **Absen** — **Scan** → izinkan kamera & lokasi → pindai kartu. Status otomatis
    `hadir` atau `telat` bila melewati batas telat. Absen pulang memakai tombol
    tipe pada halaman scan.
@@ -626,3 +627,18 @@ cd ~/absensi-siswa/web && python3 -m http.server 8080
   `MAX_UPLOAD_BA64` = ±4,5 MB per foto.
 - Menggambar banyak kartu sekaligus bisa berat di HP kelas Entry; cetak per kelas bila perlu.
 - Bebas dipakai dan dimodifikasi untuk kebutuhan sekolah masing-masing.
+
+### Cara memastikan PWA sudah versi terbaru
+
+Menu **Akun Saya → Tampilan** menulis versi aset apa adanya, misalnya
+`1.0.0 · absensi-v4`. Angka itu dibaca langsung dari Cache Storage, jadi
+pasti sama dengan file yang sedang dipakai perangkat — bukan angka yang
+ditulis manual di dalam kode dan bisa basi.
+
+Kalau versinya masih yang lama:
+
+1. Buka **Akun Saya**, tekan **🔄 Periksa Pembaruan**.
+2. Tekan **Muat ulang** bila muncul notifikasi versi baru.
+3.Tombol **🗑 Hapus Cache** masih ada sebagai jalan terakhir, setelah itu
+   aplikasi harus dimuat ulang.
+

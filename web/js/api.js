@@ -188,6 +188,12 @@ const Api = {
   ],
 
   _cache: {},
+  // WAJIB ada di sini: dulu _blob tidak pernah diinisialisasi, sehingga
+  // fotoSrc() pertama kali melempar "Cannot read properties of undefined".
+  // Sesi yang sudah login tidak pernah memanggil bersihkanSesi() atau
+  // bersihkanBlob_(), jadi _blob tetap undefined. _cache dan _diag punya
+  // baris inisialisasi ini sejak awal; _blob tertinggal.
+  _blob: {},
   _diag: { panggilan: 0, cachePukul: 0, foto: 0, lambat: 0, rerata: 0, terakhir: 0, build: null },
 
   _kunci_: function (action, payload) {
@@ -215,6 +221,9 @@ const Api = {
   fotoSrc: function (proxy, cadangan) {
     const url = Api.fotoUrl(proxy);
     if (!url) return Promise.reject(new Error('Tanpa foto'));
+    // Penjaga: dulu _blob tidak pernah diinisialisasi, dan satu baris ini
+    // melempar TypeError yang menghapus seluruh kartu dari halaman cetak.
+    if (!Api._blob) Api._blob = {};
     if (Api._blob[url]) return Api._blob[url];
     const ambil = function () {
       return Api.panggilDenganBatas(url, 30000).then(function (res) {
