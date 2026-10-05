@@ -95,11 +95,21 @@ const Api = {
     return this.urlAwal() + proxy;
   },
 
+  // Versi lama jatuh ke "Terjadi kesalahan." begitu saja kalau error tidak punya
+  // .pesan — termasuk Error biasa dari kode render. Itu menutupi penyebabnya,
+  // dan gejalanya "kartu tidak tampil" tanpa petunjuk apa pun.
   kelasGalat: function (err) {
     if (!err) return 'Tidak diketahui';
     if (err.nama === 'GagalJaringan') return 'Tidak ada koneksi internet.';
     if (err.nama === 'GagalWaktu') return 'Server terlalu lama merespons. Coba lagi.';
-    return err.pesan || 'Terjadi kesalahan.';
+    if (err.nama === 'GagalJawab') return 'Jawaban server tidak valid.';
+    if (err.pesan) return err.pesan;
+    if (err.kode && err.kode !== 'UNKNOWN') return err.kode;
+    // Error dari browser (mis. render) punya .message, bukan .pesan.
+    if (typeof err.message === 'string' && err.message) return err.message;
+    if (typeof err === 'string' && err) return err;
+    const nama = err.nama || err.name || err.code;
+    return nama ? 'Gagal: ' + nama : 'Terjadi kesalahan (kode tidak diketahui).';
   },
 
   // Build minimum backend yang dibutuhkan. Backend versi lama masih hidup di

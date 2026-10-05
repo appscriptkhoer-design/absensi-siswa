@@ -127,25 +127,50 @@ Hal.daftar('#/kartu', {
 
       const namaSekolah = (Api.sekolah() || {}).nama || 'SEKOLAH';
 
+      // Satu siswa yang gagal dibuat tidak boleh mengosongkan seluruh
+      // halaman. Tanpa try/catch di sini, satu data aneh membuat SEMUA
+      // kartu hilang dan yang tampil cuma pesan galat generik.
+      let gagal = 0;
+      const bangun = function (pabrik) {
+        return function (s) {
+          try {
+            return pabrik(s, namaSekolah);
+          } catch (err) {
+            gagal += 1;
+            if (typeof console !== 'undefined' && console.error) {
+              // Hanya s.id: s.nama justru bisa jadi penyebab lemparnya
+              // error, jadi tidak boleh ikut diubah jadi teks di sini.
+              console.error('Kartu gagal dibuat untuk siswa #' + s.id, err);
+            }
+            return null;
+          }
+        };
+      };
+
       if (duaSisi) {
         areaCetak.appendChild(h('div', {}, [
           h('div', { class: 'cetak-sisi__judul', text: 'Sisi Depan' }),
           h('div', { class: 'cetak-sisi__sisi', id: 'sisi-depan' },
-            terpilih.map(function (s) { return kartuDepan(s, namaSekolah); }))
+            terpilih.map(bangun(kartuDepan)).filter(Boolean))
         ]));
         areaCetak.appendChild(h('div', {}, [
           h('div', { class: 'cetak-sisi__judul', text: 'Sisi Belakang' }),
           h('div', { class: 'cetak-sisi__sisi', id: 'sisi-belakang' },
-            terpilih.map(function (s) { return kartuBelakang(s, namaSekolah); }))
+            terpilih.map(bangun(kartuBelakang)).filter(Boolean))
         ]));
       } else {
         areaCetak.appendChild(h('div', {}, [
           h('div', { class: 'cetak-sisi__sisi', id: 'sisi-depan' },
-            terpilih.map(function (s) { return kartuGabung(s, namaSekolah); }))
+            terpilih.map(bangun(kartuGabung)).filter(Boolean))
         ]));
       }
 
       renderGambar();
+
+      if (gagal > 0) {
+        info.textContent += ' · ' + gagal + ' kartu gagal dibuat (lihat konsol browser)';
+        Ui.toast(gagal + ' kartu gagal dibuat. Kartu lain tetap dicetak.', 'err', 6000);
+      }
     }
 
     function kartuGabung(s, namaSekolah) {
@@ -185,26 +210,48 @@ Hal.daftar('#/kartu', {
         daftarPilih.appendChild(h('div', { class: 'kosong', text: 'Tidak ada siswa pada filter ini.' }));
         return;
       }
+      // Sama seperti di gambar(): satu data rusak tidak boleh mengosongkan
+      // halaman. Tanpa ini, satu siswa membuat daftar siswa ikut hilang,
+      // dan karena itu tidak ada satu pun kartu yang bisa dicetak.
+      let gagal = 0;
       list.forEach(function (s) {
-        const cek = h('input', { type: 'checkbox', style: 'width:22px;height:22px;flex-shrink:0' });
-        cek.checked = !!semuaTerpilih[String(s.id)];
-        cek.addEventListener('change', function () {
-          semuaTerpilih[String(s.id)] = cek.checked;
-          gambar();
-        });
-        daftarPilih.appendChild(h('label', { class: 'item', style: 'cursor:pointer' }, [
-          cek,
-          Ui.avatar(s, 'sm'),
-          h('div', { class: 'item__body' }, [
-            h('div', { class: 'item__nama', text: s.nama }),
-            h('div', { class: 'item__meta' }, [
-              h('span', { text: s.kelas }),
-              h('span', { class: 'mono', text: s.barcode }),
-              s.punya_foto ? null : h('span', { text: 'foto belum ada' })
-            ])
-          ])
-        ]));
+        try {
+          barisSiswa(s);
+        } catch (err) {
+          gagal += 1;
+          if (typeof console !== 'undefined' && console.error) {
+            console.error('Baris siswa gagal dibuat untuk #' + s.id, err);
+          }
+          daftarPilih.appendChild(h('div', { class: 'item' }, [
+            h('div', { class: 'item__nama', text: 'Satu siswa gagal ditampilkan' }),
+            h('div', { class: 'item__meta', text: 'Data #' + s.id + ' - lihat konsol browser' })
+          ]));
+        }
       });
+      if (gagal > 0) {
+        Ui.toast(gagal + ' siswa gagal ditampilkan. Sisanya tetap bisa dicetak.', 'err', 6000);
+      }
+    }
+
+    function barisSiswa(s) {
+      const cek = h('input', { type: 'checkbox', style: 'width:22px;height:22px;flex-shrink:0' });
+      cek.checked = !!semuaTerpilih[String(s.id)];
+      cek.addEventListener('change', function () {
+        semuaTerpilih[String(s.id)] = cek.checked;
+        gambar();
+      });
+      daftarPilih.appendChild(h('label', { class: 'item', style: 'cursor:pointer' }, [
+        cek,
+        Ui.avatar(s, 'sm'),
+        h('div', { class: 'item__body' }, [
+          h('div', { class: 'item__nama', text: s.nama }),
+          h('div', { class: 'item__meta' }, [
+            h('span', { text: s.kelas }),
+            h('span', { class: 'mono', text: s.barcode }),
+            s.punya_foto ? null : h('span', { text: 'foto belum ada' })
+          ])
+        ])
+      ]));
     }
 
     // Cetak tidak boleh bergantung pada foto: kartu yang fotonya kosong tetap
@@ -282,8 +329,11 @@ Hal.daftar('#/kartu', {
         gambarDaftar();
         gambar();
       }).catch(function (err) {
-        daftarPilih.innerHTML = '';
-        daftarPilih.appendChild(h('div', { class: 'card card--warn', text: Api.kelasGalat(err) }));
+        // Daftar yang sudah ada tetap dipakai; error cukup ditambahkan di
+        // bawahnya. Versi lama menimpanya, jadi siswa yang sebenarnya bisa
+        // dicetak ikut hilang begitu satu panggilan gagal.
+        if (typeof console !== 'undefined' && console.error) console.error('muat kartu gagal', err);
+        daftarPilih.appendChild(Ui.pesanGalat('Gagal memuat data siswa: ' + Api.kelasGalat(err), muat));
       });
     }
 

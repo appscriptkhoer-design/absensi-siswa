@@ -437,6 +437,33 @@ Kalau timeout juga, kartu tetap tercetak.
 
 Memilih kelas yang berbeda membangun ulang kartu, jadi foto dimuat ulang.
 
+### Kartu tidak tampil, cuma "Terjadi kesalahan."
+
+Gejalanya: daftar siswa kosong dan yang muncul cuma pesan galat satu baris.
+Itu bukan masalah backend — `siswa.kartu` normalnya tidak pernah gagal
+sepenuhnya tanpa jejak.
+
+Penyebabnya satu data siswa yang tidak bisa jadi teks (mis. `nama` berisi
+objek atau `null` yang dipaksa jadi string). Satu siswa seperti itu membuat
+seluruh halaman gagal dibangun, jadi **semua** kartu hilang.
+
+Sekarang sudah dibatasi:
+
+- Setiap kartu dan setiap baris daftar dibangun di dalam try/catch, jadi satu
+  siswa rusak tidak lagi menghapus kartu siswa lain.
+- Siswa yang gagal tampil ditandai "Satu siswa gagal ditampilkan" +
+  `console.error` berisi nama/id dan error aslinya.
+- `Api.kelasGalat` tidak lagi jatuh ke teks "Terjadi kesalahan." polos.
+  Sekarang `err.message`, `err.kode`, atau `err.nama` ikut ditampilkan, jadi
+  penyebabnya kelihatan.
+- Kalau pemuatan data gagal, daftar siswa yang sudah ada tidak dihapus lagi;
+  pesan error ditambahkan di bawahnya, lengkap dengan tombol **Coba lagi**.
+
+Kalau masih muncul, buka **konsol browser** (Chrome Android: menu ⋮ →
+"Inspect" / "Periksa") dan cari baris merah. Baris baru `Kartu gagal dibuat
+untuk siswa #<id>` atau `Baris siswa gagal dibuat`. Kirimkan isi baris itu —
+itu menunjukkan data siswa mana yang bermasalah.
+
 ### Kalau kartu keluar dengan kotak foto kosong
 
 Itu normal kalau foto belum selesai: yang tampil cuma nama, NIS, dan barcode.
