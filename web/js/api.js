@@ -116,7 +116,7 @@ const Api = {
   // URL /exec kalau deployment tidak pernah di-update, dan gejalanya diam-diam
   // (foto tidak muncul, pengaturan tidak tersimpan). app.info melaporkan build
   // sehingga versinya bisa dicek tanpa login.
-  BUILD_MIN: 20,
+  BUILD_MIN: 21,
   _build: null,
 
   cekBuild: function () {

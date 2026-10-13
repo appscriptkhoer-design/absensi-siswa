@@ -84,8 +84,8 @@ root, `clasp push` akan gagal dengan pesan manifest tidak ditemukan.
 | `API_SALT` | (biarkan kosong) | Diisi otomatis oleh `setupSpreadsheet()` |
 | `SPREADSHEET_ID` | `1jH7LOz6...` | Wajib bila proyek tidak *bound* ke spreadsheet |
 | `OWNER_EMAIL` | `guru@sekolah.sch.id` | **Wajib.** Email admin yang akan dibuatkan akun |
-| `TELEGRAM_TOKEN` | `123456:AAF...` | Dari @BotFather, opsional |
-| `TELEGRAM_WEBHOOK_SECRET` | `rahasia-panjang` | Opsional, untuk verifikasi webhook |
+| `TELEGRAM_TOKEN` | `123456:AAF...` | Dari @BotFather. Opsional — bisa juga diisi dari dalam aplikasi (Administrasi → Notifikasi) |
+| `TELEGRAM_WEBHOOK_SECRET` | (biarkan kosong) | Diisi otomatis saat bot dihubungkan; dipakai memverifikasi webhook lewat `?secret=` |
 
 Isi `OWNER_EMAIL` dan `SPREADSHEET_ID` lebih dulu, karena `pasangAdmin()`
 membaca keduanya dari Script Properties.
@@ -512,20 +512,41 @@ bereaksi, periksa dulu apakah `fn`-nya benar-benar dipanggil.
 ### Telegram (opsional)
 
 1. Buat bot lewat [@BotFather](https://t.me/BotFather), salin token.
-2. Simpan sebagai Script Property `TELEGRAM_TOKEN`, atau jalankan
-   `aturTelegramToken('123456:AAF...')`.
-3. Daftarkan webhook:
-
-```js
-setTelegramWebhook('https://script.google.com/macros/s/DEPLOYMENT_ID/exec');
-```
-
-4. Orang tua mengirim `/start KODEORTU` ke bot. `Notif.webhook_` dipanggil
-   dari `doPost` (payload `update_id`), memverifikasi kode, lalu mengisi
-   `telegram_chat_id` siswa secara otomatis.
+2. Buka **Administrasi → Notifikasi → kartu Bot Telegram**, tempel token, lalu
+   tekan **Simpan & Hubungkan**. Token diverifikasi ke Telegram lebih dulu
+   (`getMe`), baru disimpan, dan webhook didaftarkan otomatis ke URL web app
+   yang sedang berjalan. Kalau perlu, tombol **Periksa Status**, **Pasang
+   Ulang**, dan **Hapus Webhook** ada di kartu yang sama.
+3. Set **Kanal notifikasi = Telegram** pada siswa yang orang tuanya ingin
+   diberi kabar (menu **Siswa**).
+4. Orang tua mengirim `/start KODE` ke bot, dengan `KODE` dilihat di detail
+   siswa (kolom kode koneksi). `Notif.webhook_` menerima panggilan dari `doPost`
+   (payload `update_id`), memverifikasi kode, lalu mengisi `telegram_chat_id`
+   siswa secara otomatis.
 5. Uji dari **Administrasi → Notifikasi → Kirim Pesan Tes**.
 
-Untuk menguatkan webhook, set Script Property `TELEGRAM_WEBHOOK_SECRET`.
+Alternatif dari editor Apps Script (tidak wajib): `aturTelegramToken('123456:AAF...')`
+dan `setTelegramWebhook('https://script.google.com/macros/s/DEPLOYMENT_ID/exec')`.
+
+**Secret webhook.** Aplikasi membuat `TELEGRAM_WEBHOOK_SECRET` sendiri saat
+pertama menghubungkan bot. Secret itu ditempel sebagai `?secret=...` di URL
+webhook, karena Apps Script tidak mengekspos header permintaan sehingga opsi
+`secret_token` bawaan Telegram tidak bisa dipakai. `doPost` menolak diam-diam
+update yang secret-nya tidak cocok.
+
+**Syarat wajib.** Deployment harus **Web app** dengan **Akses: Siapa saja**
+(bukan "Hanya saya"). Kalau tidak, Telegram tidak bisa mengirim update ke bot.
+
+**Satu bot untuk satu deployment.** `TELEGRAM_TOKEN` disimpan sekali di Script
+Properties, jadi semua sekolah di deployment yang sama berbagi bot yang sama.
+Kalau tiap sekolah perlu bot sendiri, deploy salinan proyek terpisah.
+
+**Kalau bot diam saja saat `/start` dikirim:** buka **Administrasi → Notifikasi**,
+tekan **Periksa Status**, lalu lihat baris Webhook dan pesan `last_error_message`.
+Penyebab yang paling sering: (1) URL aplikasi berubah setelah re-deploy — tekan
+**Pasang Ulang**, dan (2) deployment belum **Akses: Siapa saja**.
+
+
 
 ### WhatsApp (opsional, belum aktif)
 

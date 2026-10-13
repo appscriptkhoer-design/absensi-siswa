@@ -271,9 +271,89 @@ Hal.daftar('#/admin', {
       });
     }
 
+    function kartuBot() {
+      const isiStatus = h('div', {});
+
+      function gambarStatus() {
+        isiStatus.innerHTML = '';
+        isiStatus.appendChild(Ui.muat('Memeriksa bot Telegram…'));
+        return Api.panggil('notif.status', {}).then(function (s) {
+          isiStatus.innerHTML = '';
+          isiStatus.appendChild(h('div', { class: 'kv-list' }, [
+            baris('t', 'Token bot', s.token_terpasang ? 'terpasang · ' + s.token_samar : 'belum diatur'),
+            baris('t', 'Bot', s.bot ? ('@' + (s.bot.username || '-') + (s.bot.nama ? ' · ' + s.bot.nama : '')) : '—'),
+            baris('t', 'Webhook', s.webhook && s.webhook.url ? 'aktif' : 'belum dipasang'),
+            baris('t', 'Chat menunggu', s.webhook ? String(s.webhook.pending || 0) : '—')
+          ]));
+          if (s.webhook && s.webhook.url) {
+            isiStatus.appendChild(h('p', { class: 'hint mono', style: 'word-break:break-all', text: s.webhook.url }));
+          }
+          if (s.webhook && s.webhook.error) {
+            isiStatus.appendChild(h('p', { class: 'hint', style: 'color:#b00020', text: '⚠ ' + s.webhook.error }));
+          }
+          if (s.error) {
+            isiStatus.appendChild(h('p', { class: 'hint', style: 'color:#b00020', text: '⚠ ' + s.error }));
+          }
+          if (!s.url_aplikasi) {
+            isiStatus.appendChild(h('p', { class: 'hint', text: 'URL web app belum terbaca. Pastikan sudah dideploy sebagai Web app dengan akses "Siapa saja".' }));
+          }
+        })['catch'](function (err) {
+          isiStatus.innerHTML = '';
+          isiStatus.appendChild(h('div', { class: 'card card--warn' }, [
+            h('p', { text: 'Gagal memeriksa status bot: ' + Api.kelasGalat(err) })
+          ]));
+        });
+      }
+
+      const inToken = h('input', { class: 'input mono', type: 'password', placeholder: '123456789:AAF-xxxxxxxxxxxxxxxxx', autocomplete: 'off' });
+      const btnSimpan = h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: '💾 Simpan & Hubungkan' });
+      const btnStatus = h('button', { class: 'btn btn--sm', type: 'button', text: '↻ Periksa Status' });
+      const btnPasang = h('button', { class: 'btn btn--sm', type: 'button', text: '🔗 Pasang Ulang' });
+      const btnHapus = h('button', { class: 'btn btn--sm btn--red', type: 'button', text: '🗑 Hapus Webhook' });
+
+      btnSimpan.addEventListener('click', function () {
+        Ui.tombolMuat(btnSimpan, function () {
+          return Api.panggil('notif.set_token', { token: inToken.value.trim() }).then(function (r) {
+            inToken.value = '';
+            Ui.toast(r.message, 'ok', 6000);
+            return gambarStatus();
+          });
+        });
+      });
+      btnStatus.addEventListener('click', function () { Ui.tombolMuat(btnStatus, gambarStatus); });
+      btnPasang.addEventListener('click', function () {
+        Ui.tombolMuat(btnPasang, function () {
+          return Api.panggil('notif.pasang_webhook', {}).then(function (r) {
+            Ui.toast(r.message, 'ok');
+            return gambarStatus();
+          });
+        });
+      });
+      btnHapus.addEventListener('click', function () {
+        Ui.tombolMuat(btnHapus, function () {
+          return Api.panggil('notif.hapus_webhook', {}).then(function (r) {
+            Ui.toast(r.message, 'info');
+            return gambarStatus();
+          });
+        });
+      });
+
+      const kartu = h('div', { class: 'card' }, [
+        h('h2', { class: 'card__title', text: 'Bot Telegram' }),
+        isiStatus,
+        h('div', { class: 'field', style: 'margin-top:12px' }, [
+          h('label', { class: 'label', text: 'Token bot dari @BotFather' }),
+          inToken
+        ]),
+        h('div', { class: 'btn-row', style: 'margin-top:12px' }, [btnSimpan, btnStatus, btnPasang, btnHapus]),
+        h('p', { class: 'hint', text: 'Token diverifikasi ke Telegram sebelum disimpan, lalu webhook dipasang otomatis. Orang tua menghubungkan diri dengan mengirim /start KODE ke bot; kode koneksi ada di detail siswa.' })
+      ]);
+      gambarStatus();
+      return kartu;
+    }
+
     function panelNotif() {
       panel.innerHTML = '';
-      panel.appendChild(Ui.muat('Memuat riwayat…'));
       const chipStatus = h('div', { class: 'chip-row' });
       let status = '';
 
@@ -290,6 +370,10 @@ Hal.daftar('#/admin', {
         });
       }
 
+      // Token bot bersifat global untuk seluruh deployment, dan URL webhooknya
+      // memuat secret — jadi hanya superadmin yang boleh melihat/mengubahnya.
+      if (user.role === 'superadmin') panel.appendChild(kartuBot());
+
       const inChat = h('input', { class: 'input mono', placeholder: 'Chat ID Telegram (opsional)' });
       const btnTes = h('button', { class: 'btn btn--sm btn--blue', type: 'button', text: '📨 Kirim Pesan Tes' });
       btnTes.addEventListener('click', function () {
@@ -305,11 +389,19 @@ Hal.daftar('#/admin', {
           h('div', { class: 'field' }, [h('label', { class: 'label', text: 'Tujuan' }), inChat]),
           h('div', { class: 'field', style: 'display:flex;align-items:flex-end' }, [btnTes])
         ]),
-        h('p', { class: 'hint', text: 'Token bot disimpan di Script Properties API (TELEGRAM_TOKEN), bukan di sini.' })
+        h('p', { class: 'hint', text: 'Atur token bot di kartu "Bot Telegram" di atas. Kosongkan tujuan untuk mengirim ke akun Telegram Anda sendiri (harus sudah terhubung via /start).' })
       ]));
       panel.appendChild(chipStatus);
 
+      const kartuRiwayat = h('div', { class: 'card' }, [
+        h('h2', { class: 'card__title', text: 'Riwayat' }),
+        Ui.muat('Memuat riwayat…')
+      ]);
+      panel.appendChild(kartuRiwayat);
+
       return Api.panggil('notif.riwayat', { limit: 150, status: status }).then(function (res) {
+        kartuRiwayat.innerHTML = '';
+        kartuRiwayat.appendChild(h('h2', { class: 'card__title', text: 'Riwayat (' + res.total + ')' }));
         const holder = h('div', { class: 'list' });
         if (!res.data.length) {
           holder.appendChild(h('div', { class: 'kosong', text: 'Belum ada notifikasi terkirim.' }));
@@ -341,10 +433,7 @@ Hal.daftar('#/admin', {
             holder.appendChild(item);
           });
         }
-        panel.appendChild(h('div', { class: 'card' }, [
-          h('h2', { class: 'card__title', text: 'Riwayat (' + res.total + ')' }),
-          holder
-        ]));
+        kartuRiwayat.appendChild(holder);
       });
     }
 

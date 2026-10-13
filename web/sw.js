@@ -5,7 +5,7 @@
    network-first, jadi setiap membuka aplikasi harus menunggu GitHub Pages
    menjawab dulu — itu sendiri bisa detik-detik, di atas dua detik yang sudah
    dibebankan oleh server. */
-const VERSI = 'absensi-v4';
+const VERSI = 'absensi-v5';
 const INTI = [
   './',
   './index.html',
